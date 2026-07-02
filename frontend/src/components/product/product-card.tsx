@@ -23,7 +23,7 @@ export default function ProductCard({ id, title, price, halalCertified = false, 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart({ productId: id, title, price, imageUrl, quantity: 1 });
+    addToCart({ id, title, price, imageUrl });
   };
 
   const handleGoToCart = (e: React.MouseEvent) => {
@@ -34,12 +34,7 @@ export default function ProductCard({ id, title, price, halalCertified = false, 
 
   return (
     <Link href={`/products/${id}`} className="bg-white border border-gray-100 rounded-lg p-3 relative flex flex-col justify-between hover:shadow-md transition-shadow duration-200 block">
-      {/* Halal Badge */}
-      {halalCertified && (
-        <span className="absolute top-2 left-2 z-10 bg-amber-500 text-white text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shadow-xs">
-          Halal Certified
-        </span>
-      )}
+
 
       {/* Product Image */}
       <div className="w-full h-32 bg-gray-50 rounded-md overflow-hidden flex items-center justify-center mb-3">
