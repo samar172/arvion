@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Put, Param, Body, Req, Headers, UseGuards, BadRequestException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CheckoutDto } from './dto/orders.dto';
+import { CheckoutDto, VerifyPaymentDto } from './dto/orders.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -13,6 +13,12 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   checkout(@Req() req: any, @Body() dto: CheckoutDto) {
     return this.ordersService.checkout(req.user.id, dto);
+  }
+
+  @Post('verify-payment')
+  @UseGuards(JwtAuthGuard)
+  verifyPayment(@Body() dto: VerifyPaymentDto) {
+    return this.ordersService.verifyPayment(dto);
   }
 
   @Get('my-orders')
@@ -38,11 +44,14 @@ export class OrdersController {
   @Post('webhook')
   handleWebhook(
     @Headers('x-razorpay-signature') signature: string,
-    @Body() body: any,
+    @Req() req: any,
   ) {
     if (!signature) {
       throw new BadRequestException('Signature missing');
     }
-    return this.ordersService.handleWebhook(body, signature);
+    // req.rawBody is populated because the app is created with { rawBody: true }.
+    // Razorpay signs the exact bytes it POSTed, so we must verify against those.
+    const raw: Buffer = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
+    return this.ordersService.handleWebhook(raw, signature);
   }
 }

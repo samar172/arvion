@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import ProductCard from "@/components/product/product-card";
 import { STATIC_PRODUCTS, STATIC_CATEGORIES, getProductsByCategory } from "@/lib/static-data";
+import { getCategoryIcon } from "@/lib/category-icons";
 
 export default function CategoryPage({ params }: { params: { name: string } }) {
   const [sortBy, setSortBy] = useState("recommended");
@@ -38,7 +39,9 @@ export default function CategoryPage({ params }: { params: { name: string } }) {
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/40" />
         <div className="relative p-8 md:p-12 flex flex-col justify-center min-h-[180px]">
-          <span className="text-3xl mb-2">{category?.icon ?? "✨"}</span>
+          <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl bg-white/15 text-white backdrop-blur-sm ring-1 ring-white/25">
+            {React.createElement(getCategoryIcon(params.name), { className: "h-6 w-6", strokeWidth: 2 })}
+          </span>
           <h1 className="text-3xl md:text-4xl font-display font-bold text-white">{displayName}</h1>
           <p className="mt-2 text-white/80 max-w-xl">{displayDescription}</p>
         </div>

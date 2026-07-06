@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
+import { Package, Star } from "lucide-react";
 
 interface ProductProps {
   id: string;
@@ -33,15 +34,15 @@ export default function ProductCard({ id, title, price, halalCertified = false, 
   };
 
   return (
-    <Link href={`/products/${id}`} className="bg-white border border-gray-100 rounded-lg p-3 relative flex flex-col justify-between hover:shadow-md transition-shadow duration-200 block">
+    <Link href={`/products/${id}`} className="group bg-white border border-gray-100 rounded-lg p-3 relative flex flex-col justify-between hover:shadow-md hover:border-amber-100 transition-all duration-200 block">
 
 
       {/* Product Image */}
       <div className="w-full h-32 bg-gray-50 rounded-md overflow-hidden flex items-center justify-center mb-3">
         {imageUrl ? (
-          <img src={imageUrl} alt={title} className="object-cover w-full h-full" />
+          <img src={imageUrl} alt={title} className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
         ) : (
-          <span className="text-3xl text-gray-300">📦</span>
+          <Package className="h-10 w-10 text-gray-300" strokeWidth={1.5} />
         )}
       </div>
 
@@ -50,7 +51,7 @@ export default function ProductCard({ id, title, price, halalCertified = false, 
         <div>
           {/* Rating */}
           <div className="flex items-center space-x-1 mb-1">
-            <span className="text-amber-400 text-xs">★</span>
+            <Star className="h-3 w-3 text-amber-400" strokeWidth={2} fill="currentColor" />
             <span className="text-[10px] text-gray-500 font-bold">4.8</span>
           </div>
           

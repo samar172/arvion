@@ -25,7 +25,9 @@ export class AuthService {
         email: dto.email,
         passwordHash,
         name: dto.name,
-        role: dto.role || 'CUSTOMER',
+        // Public registration is ALWAYS a customer. Elevated roles are never
+        // assignable from client input (prevents privilege escalation).
+        role: 'CUSTOMER',
       },
     });
 

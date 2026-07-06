@@ -7,9 +7,16 @@ import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { OrdersModule } from './orders/orders.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
-  imports: [AuthModule, CatalogModule, OrdersModule, InventoryModule],
+  imports: [
+    AuthModule,
+    CatalogModule,
+    OrdersModule,
+    InventoryModule,
+    AnalyticsModule,
+  ],
   controllers: [AppController],
   providers: [AppService, PrismaService, RedisService],
 })

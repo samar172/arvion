@@ -6,6 +6,8 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
+import { ShoppingBag, Package, Trash2 } from "lucide-react";
+import api from "@/lib/api";
 
 export default function CartPage() {
   const { items, updateQuantity, removeFromCart, total, checkout, clearCart } = useCart();
@@ -30,14 +32,29 @@ export default function CartPage() {
         name: "Arvion",
         description: "Test Transaction",
         order_id: checkoutData.razorpayOrderId,
-        handler: function (response: any) {
-          alert(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
-          clearCart();
-          window.location.href = "/";
+        handler: async function (response: any) {
+          // Do NOT trust the browser: confirm the payment on the server, which
+          // validates Razorpay's HMAC signature before marking the order paid.
+          try {
+            await api.post("/orders/verify-payment", {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            clearCart();
+            window.location.href = `/order-success?order=${checkoutData.orderId}`;
+          } catch (err: any) {
+            alert(
+              "We received your payment but could not confirm it instantly. " +
+                "Don't worry — it will be verified automatically. " +
+                (err.response?.data?.message || "")
+            );
+            window.location.href = "/";
+          }
         },
         prefill: {
-          name: "Test User",
-          email: "test@example.com",
+          name: user?.name || "",
+          email: user?.email || "",
         },
         theme: {
           color: "#065f46",
@@ -59,8 +76,10 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 flex-1 w-full text-center space-y-6">
-        <div className="text-8xl">🛒</div>
+      <div className="max-w-4xl mx-auto px-4 py-20 flex-1 w-full text-center flex flex-col items-center space-y-6">
+        <span className="grid h-24 w-24 place-items-center rounded-full bg-amber-50 text-amber-500 ring-1 ring-amber-100">
+          <ShoppingBag className="h-11 w-11" strokeWidth={1.75} />
+        </span>
         <h2 className="text-2xl font-display font-bold text-gray-800">Your cart is empty</h2>
         <p className="text-gray-500">Looks like you haven't added anything yet.</p>
         <Link href="/" className="inline-block mt-4 bg-brand-emerald text-white px-6 py-3 rounded-lg font-bold hover:bg-emerald-800 transition">
@@ -84,7 +103,7 @@ export default function CartPage() {
                 {item.imageUrl ? (
                    <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
                 ) : (
-                   <span className="text-3xl">📦</span>
+                   <Package className="h-8 w-8 text-gray-300" strokeWidth={1.5} />
                 )}
               </div>
               <div className="flex-1 flex flex-col justify-between py-1">
@@ -92,8 +111,8 @@ export default function CartPage() {
                   <div>
                     <h3 className="font-bold text-gray-900 line-clamp-2">{item.title}</h3>
                   </div>
-                  <button onClick={() => removeFromCart(item.productId)} className="text-gray-400 hover:text-red-500 transition-colors">
-                    🗑️
+                  <button onClick={() => removeFromCart(item.productId)} aria-label="Remove item" className="text-gray-400 hover:text-red-500 transition-colors p-1 -m-1">
+                    <Trash2 className="h-[18px] w-[18px]" strokeWidth={2} />
                   </button>
                 </div>
                 <div className="flex justify-between items-end">

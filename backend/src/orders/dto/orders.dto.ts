@@ -18,3 +18,17 @@ export class CheckoutDto {
   @Type(() => CheckoutItemDto)
   items: CheckoutItemDto[];
 }
+
+export class VerifyPaymentDto {
+  @IsString()
+  @IsNotEmpty()
+  razorpayOrderId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  razorpayPaymentId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  razorpaySignature: string;
+}

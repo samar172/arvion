@@ -1,5 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
-import { Role } from '@prisma/client';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -15,8 +14,9 @@ export class RegisterDto {
   @IsNotEmpty()
   name: string;
 
-  @IsOptional()
-  role?: Role;
+  // NOTE: `role` is intentionally NOT accepted here. Public self-registration
+  // must never be able to grant itself elevated privileges. Admin/staff accounts
+  // are provisioned via the seed script or by an existing admin only.
 }
 
 export class LoginDto {

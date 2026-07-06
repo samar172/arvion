@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RedisService } from '../redis.service';
-import { CheckoutDto } from './dto/orders.dto';
+import { CheckoutDto, VerifyPaymentDto } from './dto/orders.dto';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 
@@ -130,67 +130,123 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
-  async handleWebhook(body: any, signature: string) {
-    // 1. Signature validation
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'mock-webhook-secret';
-    const shasum = crypto.createHmac('sha256', secret);
-    shasum.update(JSON.stringify(body));
-    const digest = shasum.digest('hex');
+  /**
+   * Verify a payment initiated from the client (Razorpay checkout handler callback).
+   * Validates the HMAC signature Razorpay returns, then confirms the order.
+   * This is what makes the client-side "payment success" trustworthy — the browser
+   * cannot forge a valid signature without the key secret.
+   */
+  async verifyPayment(dto: VerifyPaymentDto) {
+    const secret = process.env.RAZORPAY_KEY_SECRET || 'mock-key-secret';
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(`${dto.razorpayOrderId}|${dto.razorpayPaymentId}`)
+      .digest('hex');
 
-    if (digest !== signature) {
+    // Constant-time comparison to avoid timing attacks.
+    const valid =
+      expected.length === dto.razorpaySignature.length &&
+      crypto.timingSafeEqual(
+        Buffer.from(expected),
+        Buffer.from(dto.razorpaySignature),
+      );
+
+    if (!valid) {
+      throw new BadRequestException('Payment signature verification failed');
+    }
+
+    const order = await this.confirmOrderPayment(
+      dto.razorpayOrderId,
+      dto.razorpayPaymentId,
+      dto.razorpaySignature,
+    );
+
+    return { success: true, orderId: order?.id ?? null, status: 'CONFIRMED' };
+  }
+
+  async handleWebhook(rawBody: Buffer, signature: string) {
+    // 1. Signature validation over the RAW request body (Razorpay signs the exact
+    //    bytes it sent — re-serializing parsed JSON is not byte-identical and fails).
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'mock-webhook-secret';
+    const digest = crypto
+      .createHmac('sha256', secret)
+      .update(rawBody)
+      .digest('hex');
+
+    const valid =
+      digest.length === signature.length &&
+      crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
+
+    if (!valid) {
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    const event = body.event;
-    const payload = body.payload;
+    const body = JSON.parse(rawBody.toString('utf8'));
 
-    if (event === 'order.paid') {
-      const razorpayOrderId = payload.payment.entity.order_id;
-      const razorpayPaymentId = payload.payment.entity.id;
-      
-      const order = await this.prisma.order.findUnique({
-        where: { razorpayOrderId },
-        include: { items: true },
-      });
-
-      if (order && order.status === 'PENDING') {
-        await this.prisma.$transaction(async (tx) => {
-          // Confirm payment
-          await tx.payment.create({
-            data: {
-              orderId: order.id,
-              razorpayPaymentId,
-              razorpaySignature: signature,
-              amount: order.totalAmount,
-              status: 'COMPLETED',
-            },
-          });
-
-          // Confirm Order
-          await tx.order.update({
-            where: { id: order.id },
-            data: { status: 'CONFIRMED' },
-          });
-
-          // Deduct stock, decrement reserved
-          for (const item of order.items) {
-            await tx.inventory.update({
-              where: { productId: item.productId },
-              data: {
-                stock: { decrement: item.quantity },
-                reserved: { decrement: item.quantity },
-              },
-            });
-          }
-        });
-
-        // Clear Redis Reservation Key
-        const redis = this.redisService.getClient();
-        await redis.del(`order:reservation:${order.id}`);
-      }
+    if (body.event === 'order.paid') {
+      const entity = body.payload.payment.entity;
+      await this.confirmOrderPayment(entity.order_id, entity.id, signature);
     }
 
     return { received: true };
+  }
+
+  /**
+   * Idempotently confirm a paid order: records the payment, marks the order
+   * CONFIRMED, and deducts reserved stock. Safe to call from BOTH the client
+   * verify endpoint and the webhook — the PENDING guard ensures stock is only
+   * ever deducted once, no matter which path fires first.
+   */
+  private async confirmOrderPayment(
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    signature: string,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { razorpayOrderId },
+      include: { items: true },
+    });
+
+    if (!order) {
+      throw new BadRequestException('Order not found for this payment');
+    }
+
+    // Already processed (e.g. webhook won the race) — no-op, still a success.
+    if (order.status !== 'PENDING') {
+      return order;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.create({
+        data: {
+          orderId: order.id,
+          razorpayPaymentId,
+          razorpaySignature: signature,
+          amount: order.totalAmount,
+          status: 'COMPLETED',
+        },
+      });
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: 'CONFIRMED' },
+      });
+
+      for (const item of order.items) {
+        await tx.inventory.update({
+          where: { productId: item.productId },
+          data: {
+            stock: { decrement: item.quantity },
+            reserved: { decrement: item.quantity },
+          },
+        });
+      }
+    });
+
+    const redis = this.redisService.getClient();
+    await redis.del(`order:reservation:${order.id}`);
+
+    return order;
   }
 
   async getMyOrders(userId: string) {

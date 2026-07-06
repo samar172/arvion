@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { MapPin, ChevronDown } from "lucide-react";
 
 export default function PrayerWidget() {
   const [currentTime, setCurrentTime] = useState("");
@@ -28,12 +29,14 @@ export default function PrayerWidget() {
     <div className="bg-brand-mint border border-emerald-100 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       {/* Location Area */}
       <div className="flex items-center space-x-3">
-        <span className="text-2xl">📍</span>
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-brand-emerald shadow-xs ring-1 ring-emerald-100">
+          <MapPin className="h-5 w-5" strokeWidth={2.25} />
+        </span>
         <div>
           <h4 className="text-xs text-gray-500 font-bold uppercase tracking-wider">Delivery Location</h4>
           <button className="flex items-center text-sm font-bold text-brand-emeraldDark hover:underline">
             Pawan Puri, Jodhpur
-            <span className="ml-1 text-xs">▼</span>
+            <ChevronDown className="ml-1 h-3.5 w-3.5" strokeWidth={2.5} />
           </button>
         </div>
       </div>

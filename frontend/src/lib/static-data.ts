@@ -22,7 +22,6 @@ export interface StaticProduct {
 export interface StaticCategory {
   name: string;
   slug: string;
-  icon: string;
   description: string;
   imageUrl: string;
 }
@@ -31,35 +30,30 @@ export const STATIC_CATEGORIES: StaticCategory[] = [
   {
     name: 'Rose & Floral',
     slug: 'rose-floral',
-    icon: '🌹',
     description: 'Delicate floral attars capturing the soul of blooms',
     imageUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80',
   },
   {
     name: 'Oud & Woody',
     slug: 'oud-woody',
-    icon: '🪵',
     description: 'Deep, resinous oud and earthy wood-based fragrances',
     imageUrl: 'https://images.unsplash.com/photo-1519682577862-22b62b24cb12?auto=format&fit=crop&w=600&q=80',
   },
   {
     name: 'Musk & Amber',
     slug: 'musk-amber',
-    icon: '✨',
     description: 'Warm, sensual musks and rich amber resins',
     imageUrl: 'https://images.unsplash.com/photo-1547887538-e3a2f32cb1cc?auto=format&fit=crop&w=600&q=80',
   },
   {
     name: 'Exotic & Rare',
     slug: 'exotic-rare',
-    icon: '💎',
     description: 'Precious saffron, henna, and other rare botanical extracts',
     imageUrl: 'https://images.unsplash.com/photo-1587017539504-67cfbddac569?auto=format&fit=crop&w=600&q=80',
   },
   {
     name: 'Gift Collections',
     slug: 'gift-collections',
-    icon: '🎁',
     description: 'Curated attar sets for every occasion and celebration',
     imageUrl: 'https://images.unsplash.com/photo-1607344645866-009c320b63e0?auto=format&fit=crop&w=600&q=80',
   },

@@ -1,9 +1,31 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 
 const prisma = new PrismaClient();
 
+async function seedAdmin() {
+  // Admin credentials come from env so real secrets never live in the repo.
+  const email = process.env.ADMIN_EMAIL || 'admin@arvion.com';
+  const password = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
+  const name = process.env.ADMIN_NAME || 'Arvion Admin';
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.upsert({
+    where: { email },
+    update: { role: 'ADMIN' },
+    create: { email, name, passwordHash, role: 'ADMIN' },
+  });
+
+  console.log(`Admin user ready: ${email}`);
+  if (!process.env.ADMIN_PASSWORD) {
+    console.warn('  ⚠  Using default admin password "ChangeMe123!" — set ADMIN_PASSWORD in .env before production.');
+  }
+}
+
 async function main() {
   console.log('Seeding data...');
+
+  await seedAdmin();
 
   const products = [
     {

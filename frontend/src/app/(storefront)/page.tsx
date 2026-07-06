@@ -5,6 +5,15 @@ import Link from "next/link";
 import PrayerWidget from "@/components/widgets/prayer-widget";
 import ProductCard from "@/components/product/product-card";
 import { STATIC_PRODUCTS, STATIC_CATEGORIES, getBestsellers, getNewArrivals } from "@/lib/static-data";
+import { getCategoryIcon } from "@/lib/category-icons";
+import { Leaf, FlaskConical, Droplets, Truck, Star, Sparkles, ArrowRight } from "lucide-react";
+
+const TRUST_BADGES = [
+  { icon: Leaf, label: "100% Natural", sub: "No synthetics, ever" },
+  { icon: FlaskConical, label: "Ancient Method", sub: "Deg-bhapka distillation" },
+  { icon: Droplets, label: "Alcohol-Free", sub: "Pure botanical oils" },
+  { icon: Truck, label: "Free Shipping", sub: "On orders above ₹999" },
+];
 
 export default function StorefrontHomePage() {
   const bestsellers = getBestsellers();
@@ -39,9 +48,10 @@ export default function StorefrontHomePage() {
             <div className="flex items-center space-x-4 pt-2">
               <Link
                 href="/category/rose-floral"
-                className="bg-amber-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-amber-300 transition-all duration-200 shadow-lg"
+                className="inline-flex items-center gap-2 bg-amber-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-amber-300 transition-all duration-200 shadow-lg"
               >
                 Explore Collection
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
               <Link
                 href="/category/gift-collections"
@@ -60,42 +70,47 @@ export default function StorefrontHomePage() {
 
       {/* Trust Badges */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: "🌿", label: "100% Natural", sub: "No synthetics, ever" },
-          { icon: "🏺", label: "Ancient Method", sub: "Deg-bhapka distillation" },
-          { icon: "🌸", label: "Alcohol-Free", sub: "Pure botanical oils" },
-          { icon: "📦", label: "Free Shipping", sub: "On orders above ₹999" },
-        ].map((badge) => (
-          <div key={badge.label} className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center space-x-3">
-            <span className="text-2xl">{badge.icon}</span>
-            <div>
-              <p className="font-bold text-sm text-gray-800">{badge.label}</p>
-              <p className="text-xs text-gray-500">{badge.sub}</p>
+        {TRUST_BADGES.map((badge) => {
+          const Icon = badge.icon;
+          return (
+            <div key={badge.label} className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-amber-600 shadow-sm ring-1 ring-amber-100">
+                <Icon className="h-5 w-5" strokeWidth={2.25} />
+              </span>
+              <div>
+                <p className="font-bold text-sm text-gray-800">{badge.label}</p>
+                <p className="text-xs text-gray-500">{badge.sub}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Categories */}
       <div className="space-y-4">
         <h3 className="text-xl font-display font-bold text-gray-800">Shop by Collection</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          {STATIC_CATEGORIES.map((cat) => (
-            <Link href={`/category/${cat.slug}`} key={cat.slug}>
-              <div className="relative rounded-2xl overflow-hidden aspect-square group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300">
-                <img
-                  src={cat.imageUrl}
-                  alt={cat.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <span className="text-xl">{cat.icon}</span>
-                  <p className="text-white font-bold text-sm leading-tight mt-1">{cat.name}</p>
+          {STATIC_CATEGORIES.map((cat) => {
+            const Icon = getCategoryIcon(cat.slug);
+            return (
+              <Link href={`/category/${cat.slug}`} key={cat.slug}>
+                <div className="relative rounded-2xl overflow-hidden aspect-square group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300">
+                  <img
+                    src={cat.imageUrl}
+                    alt={cat.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 text-white backdrop-blur-sm ring-1 ring-white/25">
+                      <Icon className="h-4 w-4" strokeWidth={2.25} />
+                    </span>
+                    <p className="text-white font-bold text-sm leading-tight mt-1.5">{cat.name}</p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -104,9 +119,15 @@ export default function StorefrontHomePage() {
         <div className="flex justify-between items-end">
           <div className="flex items-center space-x-3">
             <h3 className="text-xl font-display font-bold text-gray-800">Bestsellers</h3>
-            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full">⭐ Most Loved</span>
+            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
+              <Star className="h-3.5 w-3.5" strokeWidth={2.5} fill="currentColor" />
+              Most Loved
+            </span>
           </div>
-          <Link href="/category/rose-floral" className="text-sm font-bold text-amber-700 hover:underline">View All</Link>
+          <Link href="/category/rose-floral" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline">
+            View All
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </Link>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {bestsellers.map((prod) => (
@@ -135,8 +156,9 @@ export default function StorefrontHomePage() {
             <span className="text-rose-200 text-xs font-bold uppercase tracking-widest">Rose & Floral</span>
             <h4 className="text-2xl font-display font-bold text-white">The Heart of Indian Attar</h4>
             <p className="text-rose-100 text-sm">Ruh Gulab, Mogra & more — distilled from petals picked at dawn.</p>
-            <Link href="/category/rose-floral" className="inline-block text-xs font-bold text-white border-b border-white/50 pb-0.5 w-fit hover:border-white transition">
-              Shop Rose Collection →
+            <Link href="/category/rose-floral" className="inline-flex items-center gap-1.5 text-xs font-bold text-white border-b border-white/50 pb-0.5 w-fit hover:border-white transition">
+              Shop Rose Collection
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
             </Link>
           </div>
         </div>
@@ -152,8 +174,9 @@ export default function StorefrontHomePage() {
             <span className="text-amber-300 text-xs font-bold uppercase tracking-widest">Oud & Woody</span>
             <h4 className="text-2xl font-display font-bold text-white">The Scent of Kings</h4>
             <p className="text-stone-300 text-sm">Aged agarwood from Assam & Cambodia — commanding, regal, timeless.</p>
-            <Link href="/category/oud-woody" className="inline-block text-xs font-bold text-white border-b border-white/50 pb-0.5 w-fit hover:border-white transition">
-              Shop Oud Collection →
+            <Link href="/category/oud-woody" className="inline-flex items-center gap-1.5 text-xs font-bold text-white border-b border-white/50 pb-0.5 w-fit hover:border-white transition">
+              Shop Oud Collection
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
             </Link>
           </div>
         </div>
@@ -164,7 +187,10 @@ export default function StorefrontHomePage() {
         <div className="space-y-4">
           <div className="flex items-center space-x-3">
             <h3 className="text-xl font-display font-bold text-gray-800">New Arrivals</h3>
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded-full">🆕 Just Added</span>
+            <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Just Added
+            </span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {newArrivals.map((prod) => (
@@ -203,7 +229,9 @@ export default function StorefrontHomePage() {
 
       {/* About Attar */}
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-8 md:p-12 text-center space-y-4">
-        <span className="text-4xl">🏺</span>
+        <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-100">
+          <FlaskConical className="h-8 w-8" strokeWidth={2} />
+        </span>
         <h3 className="text-2xl font-display font-bold text-gray-900">What is Attar?</h3>
         <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
           Attar (also spelled Ittar) is a traditional, highly concentrated natural perfume oil derived from
@@ -230,9 +258,10 @@ export default function StorefrontHomePage() {
         </div>
         <Link
           href="/category/gift-collections"
-          className="bg-amber-400 text-gray-900 font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-amber-300 hover:-translate-y-0.5 transition-all w-full md:w-auto text-center"
+          className="inline-flex items-center justify-center gap-2 bg-amber-400 text-gray-900 font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-amber-300 hover:-translate-y-0.5 transition-all w-full md:w-auto text-center"
         >
           Shop Gift Sets
+          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </Link>
       </div>
     </div>

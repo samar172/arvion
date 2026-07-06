@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { Download, AlertTriangle, Package } from "lucide-react";
 
 export default function AdminInventoryPage() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -38,7 +39,7 @@ export default function AdminInventoryPage() {
         <h1 className="text-2xl font-bold text-gray-900">Inventory & Stock</h1>
         <div className="flex space-x-2">
           <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 flex items-center gap-2">
-            <span>⬇️</span> Export CSV
+            <Download className="h-4 w-4" strokeWidth={2.25} /> Export CSV
           </button>
         </div>
       </div>
@@ -47,7 +48,7 @@ export default function AdminInventoryPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-start gap-3">
           <div className="bg-red-100 p-2 rounded-lg text-red-600">
-            ⚠️
+            <AlertTriangle className="h-5 w-5" strokeWidth={2.25} />
           </div>
           <div>
             <h3 className="font-bold text-red-900">Low Stock Alerts</h3>
@@ -59,7 +60,7 @@ export default function AdminInventoryPage() {
         
         <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex items-start gap-3">
           <div className="bg-amber-100 p-2 rounded-lg text-amber-600">
-            📦
+            <Package className="h-5 w-5" strokeWidth={2.25} />
           </div>
           <div>
             <h3 className="font-bold text-amber-900">Total Items in Stock</h3>

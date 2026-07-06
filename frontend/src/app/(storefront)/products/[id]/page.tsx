@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { getProductById, STATIC_PRODUCTS } from "@/lib/static-data";
 import ProductCard from "@/components/product/product-card";
+import { Star, MapPin, Droplet, ShieldCheck, Check, Truck, RotateCcw, Lock, FlaskConical } from "lucide-react";
 
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const product = getProductById(params.id);
@@ -22,7 +23,9 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
   if (!product) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center space-y-4 py-32">
-        <span className="text-6xl">🏺</span>
+        <span className="grid h-20 w-20 place-items-center rounded-2xl bg-amber-50 text-amber-500 ring-1 ring-amber-100">
+          <FlaskConical className="h-10 w-10" strokeWidth={1.75} />
+        </span>
         <h2 className="text-2xl font-display font-bold text-gray-800">Attar not found</h2>
         <Link href="/" className="text-amber-700 font-bold hover:underline">
           Return to Collection
@@ -77,8 +80,9 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
         <div className="w-full md:w-1/2 flex flex-col gap-4">
           <div className="aspect-square rounded-2xl overflow-hidden relative bg-gray-50 border border-gray-100">
             {product.isBestseller && (
-              <span className="absolute top-4 right-4 z-10 bg-amber-900 text-amber-200 text-xs font-extrabold uppercase px-2 py-1 rounded-lg shadow">
-                ⭐ Bestseller
+              <span className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 bg-amber-900 text-amber-200 text-xs font-extrabold uppercase px-2 py-1 rounded-lg shadow">
+                <Star className="h-3.5 w-3.5" strokeWidth={2.5} fill="currentColor" />
+                Bestseller
               </span>
             )}
             {product.isNew && !product.isBestseller && (
@@ -94,14 +98,14 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
           </div>
           {/* Origin & volume tags */}
           <div className="flex flex-wrap gap-2">
-            <span className="bg-stone-100 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-full">
-              📍 {product.origin}
+            <span className="inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-full">
+              <MapPin className="h-3.5 w-3.5" strokeWidth={2.25} /> {product.origin}
             </span>
-            <span className="bg-amber-50 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full">
-              🏺 {product.volume}
+            <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full">
+              <Droplet className="h-3.5 w-3.5" strokeWidth={2.25} /> {product.volume}
             </span>
-            <span className="bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full">
-              ✅ Alcohol-Free
+            <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full">
+              <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} /> Alcohol-Free
             </span>
           </div>
         </div>
@@ -112,9 +116,12 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
           <div className="flex items-center space-x-2">
             <div className="flex">
               {Array.from({ length: 5 }).map((_, i) => (
-                <span key={i} className={`text-sm ${i < Math.floor(product.rating) ? "text-amber-400" : "text-gray-200"}`}>
-                  ★
-                </span>
+                <Star
+                  key={i}
+                  className={`h-4 w-4 ${i < Math.floor(product.rating) ? "text-amber-400" : "text-gray-200"}`}
+                  strokeWidth={2}
+                  fill="currentColor"
+                />
               ))}
             </div>
             <span className="text-sm font-bold text-gray-600">{product.rating}</span>
@@ -183,8 +190,8 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
             {activeTab === "benefits" && (
               <ul className="space-y-2">
                 {product.benefits.map((b) => (
-                  <li key={b} className="flex items-center space-x-2 text-sm text-gray-700">
-                    <span className="text-amber-500 font-bold">✓</span>
+                  <li key={b} className="flex items-center gap-2 text-sm text-gray-700">
+                    <Check className="h-4 w-4 shrink-0 text-amber-500" strokeWidth={3} />
                     <span>{b}</span>
                   </li>
                 ))}
@@ -237,10 +244,10 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
               </button>
             </div>
 
-            <div className="flex items-center justify-center space-x-6 pt-2 text-xs font-bold text-gray-400">
-              <span className="flex items-center space-x-1"><span>🚚</span><span>Free delivery over ₹999</span></span>
-              <span className="flex items-center space-x-1"><span>🔁</span><span>Easy returns</span></span>
-              <span className="flex items-center space-x-1"><span>🔒</span><span>Secure checkout</span></span>
+            <div className="flex items-center justify-center gap-6 pt-2 text-xs font-bold text-gray-500">
+              <span className="flex items-center gap-1.5"><Truck className="h-4 w-4 text-amber-500" strokeWidth={2.25} />Free delivery over ₹999</span>
+              <span className="flex items-center gap-1.5"><RotateCcw className="h-4 w-4 text-amber-500" strokeWidth={2.25} />Easy returns</span>
+              <span className="flex items-center gap-1.5"><Lock className="h-4 w-4 text-amber-500" strokeWidth={2.25} />Secure checkout</span>
             </div>
           </div>
         </div>

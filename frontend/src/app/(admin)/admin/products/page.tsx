@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { Package } from "lucide-react";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -166,7 +167,7 @@ export default function AdminProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded flex items-center justify-center">
-                        {product.imageUrl ? <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover rounded" /> : "📦"}
+                        {product.imageUrl ? <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover rounded" /> : <Package className="h-5 w-5 text-gray-400" strokeWidth={1.75} />}
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-bold text-gray-900">{product.title}</div>
