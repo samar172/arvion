@@ -1,268 +1,188 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import PrayerWidget from "@/components/widgets/prayer-widget";
-import ProductCard from "@/components/product/product-card";
-import { STATIC_PRODUCTS, STATIC_CATEGORIES, getBestsellers, getNewArrivals } from "@/lib/static-data";
-import { getCategoryIcon } from "@/lib/category-icons";
-import { Leaf, FlaskConical, Droplets, Truck, Star, Sparkles, ArrowRight } from "lucide-react";
-
-const TRUST_BADGES = [
-  { icon: Leaf, label: "100% Natural", sub: "No synthetics, ever" },
-  { icon: FlaskConical, label: "Ancient Method", sub: "Deg-bhapka distillation" },
-  { icon: Droplets, label: "Alcohol-Free", sub: "Pure botanical oils" },
-  { icon: Truck, label: "Free Shipping", sub: "On orders above ₹999" },
-];
+import api from "@/lib/api";
 
 export default function StorefrontHomePage() {
-  const bestsellers = getBestsellers();
-  const newArrivals = getNewArrivals();
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [prodRes, catRes] = await Promise.all([
+          api.get("/catalog?limit=100"),
+          api.get("/category"),
+        ]);
+        setProducts(prodRes.data.data || []);
+        setCategories(catRes.data || []);
+      } catch (err) {
+        console.error("Failed to load storefront homepage data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const trendingProducts = products.slice(0, 6);
+
+  const handleAdd = (id: string) => {
+    setQuantities((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  };
+
+  const handleRemove = (id: string) => {
+    setQuantities((prev) => {
+      const current = prev[id] || 0;
+      if (current <= 1) {
+        const newQ = { ...prev };
+        delete newQ[id];
+        return newQ;
+      }
+      return { ...prev, [id]: current - 1 };
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 w-full flex items-center justify-center min-h-[50vh]">
+        <p className="text-outline font-medium animate-pulse">Loading...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-12 flex-1 w-full">
-      <PrayerWidget />
-
-      {/* Hero Banner */}
-      <div className="relative w-full h-[320px] md:h-[420px] rounded-2xl overflow-hidden shadow-xl">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              'url("https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=1400&q=80")',
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent" />
-        <div className="relative h-full flex items-center px-8 md:px-16">
-          <div className="space-y-4 max-w-lg">
-            <span className="inline-block bg-amber-400 text-black text-xs font-extrabold uppercase tracking-widest px-3 py-1 rounded-full">
-              Pure · Natural · Ancient
-            </span>
-            <h2 className="text-3xl md:text-5xl font-display font-bold text-white leading-tight">
-              The Soul of Ancient Perfumery
-            </h2>
-            <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-              Discover rare Attar & Ittar oils — alcohol-free, distilled from flowers, herbs and
-              resins using centuries-old deg-bhapka methods.
-            </p>
-            <div className="flex items-center space-x-4 pt-2">
-              <Link
-                href="/category/rose-floral"
-                className="inline-flex items-center gap-2 bg-amber-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-amber-300 transition-all duration-200 shadow-lg"
-              >
-                Explore Collection
-                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-              </Link>
-              <Link
-                href="/category/gift-collections"
-                className="text-white font-bold border border-white/40 px-6 py-3 rounded-xl hover:bg-white/10 transition-all duration-200"
-              >
-                Gift Sets
-              </Link>
-            </div>
-          </div>
-        </div>
-        <div className="absolute bottom-6 right-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white text-center hidden md:block">
-          <p className="text-amber-400 font-extrabold text-lg">12+</p>
-          <p className="text-xs font-medium text-white/80">Rare Attars</p>
+    <div className="flex flex-col w-full bg-surface pb-4 max-w-7xl mx-auto">
+      {/* Search Bar - Sticky */}
+      <div className="sticky top-[60px] md:top-[70px] z-40 bg-surface px-container-margin py-xs md:py-sm">
+        <div className="relative max-w-3xl mx-auto">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+          <input 
+            type="text" 
+            placeholder="Search for Attar, Dates, Prayer Mats..." 
+            className="w-full bg-surface-container rounded-full pl-10 pr-4 py-3 text-body-md text-on-surface placeholder:text-outline border-none focus:ring-1 focus:ring-primary outline-none transition-shadow"
+          />
         </div>
       </div>
 
-      {/* Trust Badges */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {TRUST_BADGES.map((badge) => {
-          const Icon = badge.icon;
-          return (
-            <div key={badge.label} className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-amber-600 shadow-sm ring-1 ring-amber-100">
-                <Icon className="h-5 w-5" strokeWidth={2.25} />
-              </span>
-              <div>
-                <p className="font-bold text-sm text-gray-800">{badge.label}</p>
-                <p className="text-xs text-gray-500">{badge.sub}</p>
+      {/* Prayer Widget */}
+      <div className="px-container-margin mt-md md:mt-lg">
+        <div className="bg-tertiary-fixed rounded-2xl p-md md:p-lg md:px-xl relative overflow-hidden flex items-center justify-between shadow-sm">
+          <span className="material-symbols-outlined absolute -right-4 -bottom-4 md:right-10 md:top-1/2 md:-translate-y-1/2 text-[120px] md:text-[180px] text-tertiary/10 rotate-[-15deg]">mosque</span>
+          <div className="relative z-10 flex flex-col">
+            <span className="text-badge-micro md:text-sm font-label-bold text-on-tertiary-fixed-variant uppercase tracking-wider">Next Prayer</span>
+            <div className="flex items-baseline gap-2 mt-xs md:mt-1">
+              <span className="text-headline-md md:text-4xl font-extrabold text-on-tertiary-container">Dhuhr</span>
+              <span className="text-title-md md:text-xl font-bold text-on-tertiary-container">12:45 PM</span>
+            </div>
+            <span className="text-body-sm md:text-base text-on-tertiary-fixed mt-1 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px] md:text-[18px]">schedule</span>
+              Countdown: 1h 22m remains
+            </span>
+          </div>
+          <div className="relative z-10 flex flex-col items-end gap-xs md:gap-2 text-right">
+            <span className="text-body-sm md:text-base text-on-tertiary-fixed font-medium">Fajr • 05:12 AM</span>
+            <span className="text-body-sm md:text-base text-on-tertiary-fixed font-medium">Isha • 07:45 PM</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero Banners */}
+      <div className="mt-lg md:mt-xl">
+        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-container-margin gap-md pb-xs">
+          {/* Banner 1 */}
+          <div className="min-w-[85%] sm:min-w-[400px] md:min-w-[600px] snap-center relative rounded-2xl overflow-hidden h-[160px] md:h-[280px] bg-surface-container flex-shrink-0 shadow-sm">
+            <img src="https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=1200&q=80" alt="Attar Collection" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-on-primary-container/95 via-on-primary-container/70 to-transparent"></div>
+            <div className="relative z-10 p-md md:p-xl flex flex-col justify-center h-full max-w-[70%] md:max-w-[50%]">
+              <span className="text-badge-micro md:text-sm font-label-bold text-primary-fixed uppercase tracking-wider mb-1 md:mb-2">LIMITED TIME</span>
+              <h3 className="text-title-md md:text-3xl font-bold text-on-primary mb-1 md:mb-3">Pure Oud Attars</h3>
+              <p className="text-body-sm md:text-base text-primary-fixed-dim line-clamp-2 md:line-clamp-none">Up to 20% off on select premium collections</p>
+            </div>
+          </div>
+          {/* Banner 2 */}
+          <div className="min-w-[85%] sm:min-w-[400px] md:min-w-[600px] snap-center relative rounded-2xl overflow-hidden h-[160px] md:h-[280px] bg-surface-container flex-shrink-0 shadow-sm">
+            <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80" alt="Dates" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-on-secondary-fixed/95 via-on-secondary-fixed/70 to-transparent"></div>
+            <div className="relative z-10 p-md md:p-xl flex flex-col justify-center h-full max-w-[70%] md:max-w-[50%]">
+              <span className="text-badge-micro md:text-sm font-label-bold text-secondary-fixed uppercase tracking-wider mb-1 md:mb-2">NEW ARRIVALS</span>
+              <h3 className="text-title-md md:text-3xl font-bold text-on-primary mb-1 md:mb-3">Ajwa Dates</h3>
+              <p className="text-body-sm md:text-base text-secondary-fixed-dim line-clamp-2 md:line-clamp-none">Freshly imported from Madinah</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Categories */}
+      <div className="px-container-margin mt-lg md:mt-xl">
+        <div className="flex justify-between items-end mb-md md:mb-lg">
+          <h2 className="text-title-md md:text-2xl font-bold text-on-surface">Shop by Category</h2>
+          <Link href="/category/all" className="text-body-sm md:text-base font-medium text-primary hover:underline">View All</Link>
+        </div>
+        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-x-sm gap-y-md md:gap-lg">
+          {categories.slice(0, 8).map((cat) => (
+            <Link href={`/category/${cat.slug}`} key={cat.id} className="flex flex-col items-center gap-2 md:gap-3 group">
+              <div className="w-full aspect-square rounded-2xl md:rounded-[2rem] bg-surface-container-low flex items-center justify-center overflow-hidden border border-outline-variant/30 group-hover:border-primary/50 group-hover:shadow-md transition-all duration-300">
+                {cat.imageUrl ? (
+                  <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                ) : (
+                  <span className="material-symbols-outlined text-outline text-[32px] md:text-[48px]">category</span>
+                )}
+              </div>
+              <span className="text-badge-micro md:text-sm font-label-bold text-on-surface text-center line-clamp-2 leading-tight md:leading-normal">{cat.name}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Trending Carousel */}
+      <div className="mt-lg md:mt-xl">
+        <div className="px-container-margin flex justify-between items-end mb-md md:mb-lg">
+          <div>
+            <h2 className="text-title-md md:text-2xl font-bold text-on-surface">Trending this Week</h2>
+            <p className="text-body-sm md:text-base text-outline">Most loved by the community</p>
+          </div>
+          <Link href="/category/all" className="text-body-sm md:text-base font-medium text-primary hover:underline">View All</Link>
+        </div>
+        <div className="flex overflow-x-auto no-scrollbar px-container-margin gap-sm md:gap-lg pb-md">
+          {trendingProducts.map((prod) => (
+            <div key={prod.id} className="min-w-[160px] md:min-w-[240px] w-40 md:w-60 flex flex-col bg-surface rounded-2xl border border-outline-variant overflow-hidden flex-shrink-0 group hover:shadow-lg transition-shadow">
+              <Link href={`/products/${prod.id}`} className="relative aspect-square bg-surface-container-lowest block">
+                {prod.halalCertified && (
+                  <span className="absolute top-2 left-2 md:top-3 md:left-3 bg-primary text-on-primary text-badge-micro md:text-xs font-label-bold px-1.5 md:px-2 py-0.5 md:py-1 rounded-md shadow-sm z-10">HALAL</span>
+                )}
+                <img src={prod.imageUrl || "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=400&q=80"} alt={prod.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              </Link>
+              <div className="p-sm md:p-md flex flex-col flex-1">
+                <Link href={`/products/${prod.id}`} className="text-body-md md:text-lg font-bold text-on-surface line-clamp-2 leading-tight mb-1 md:mb-3 flex-1 hover:text-primary transition-colors">
+                  {prod.title}
+                </Link>
+                <div className="flex justify-between items-end mt-2 md:mt-4">
+                  <span className="text-title-md md:text-xl font-extrabold text-on-surface">₹{parseFloat(prod.price)}</span>
+                  {quantities[prod.id] ? (
+                    <div className="flex items-center bg-primary rounded-lg md:rounded-xl shadow-sm border border-primary overflow-hidden h-8 md:h-10">
+                      <button onClick={() => handleRemove(prod.id)} className="w-7 md:w-10 h-full flex items-center justify-center text-on-primary active:bg-primary-container transition-colors hover:bg-primary/90">
+                        <span className="material-symbols-outlined text-[18px] md:text-[20px]">remove</span>
+                      </button>
+                      <span className="w-6 md:w-8 text-center text-body-sm md:text-base font-bold text-on-primary">{quantities[prod.id]}</span>
+                      <button onClick={() => handleAdd(prod.id)} className="w-7 md:w-10 h-full flex items-center justify-center text-on-primary active:bg-primary-container transition-colors hover:bg-primary/90">
+                        <span className="material-symbols-outlined text-[18px] md:text-[20px]">add</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => handleAdd(prod.id)} className="bg-surface border border-outline text-primary text-label-bold md:text-sm px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl font-bold hover:bg-primary hover:text-on-primary hover:border-primary active:bg-primary-container transition-all h-8 md:h-10 flex items-center justify-center">
+                      ADD
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Categories */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-display font-bold text-gray-800">Shop by Collection</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          {STATIC_CATEGORIES.map((cat) => {
-            const Icon = getCategoryIcon(cat.slug);
-            return (
-              <Link href={`/category/${cat.slug}`} key={cat.slug}>
-                <div className="relative rounded-2xl overflow-hidden aspect-square group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300">
-                  <img
-                    src={cat.imageUrl}
-                    alt={cat.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 text-white backdrop-blur-sm ring-1 ring-white/25">
-                      <Icon className="h-4 w-4" strokeWidth={2.25} />
-                    </span>
-                    <p className="text-white font-bold text-sm leading-tight mt-1.5">{cat.name}</p>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Bestsellers */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-end">
-          <div className="flex items-center space-x-3">
-            <h3 className="text-xl font-display font-bold text-gray-800">Bestsellers</h3>
-            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
-              <Star className="h-3.5 w-3.5" strokeWidth={2.5} fill="currentColor" />
-              Most Loved
-            </span>
-          </div>
-          <Link href="/category/rose-floral" className="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:underline">
-            View All
-            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {bestsellers.map((prod) => (
-            <ProductCard
-              key={prod.id}
-              id={prod.id}
-              title={prod.title}
-              price={parseFloat(prod.price)}
-              halalCertified={prod.halalCertified}
-              imageUrl={prod.imageUrl}
-            />
           ))}
         </div>
-      </div>
-
-      {/* Feature Banners */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="relative rounded-2xl overflow-hidden min-h-[200px] group">
-          <img
-            src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=800&q=80"
-            alt="Rose Attar"
-            className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-rose-900/85 to-rose-900/30" />
-          <div className="relative p-8 flex flex-col justify-end h-full min-h-[200px] space-y-2">
-            <span className="text-rose-200 text-xs font-bold uppercase tracking-widest">Rose & Floral</span>
-            <h4 className="text-2xl font-display font-bold text-white">The Heart of Indian Attar</h4>
-            <p className="text-rose-100 text-sm">Ruh Gulab, Mogra & more — distilled from petals picked at dawn.</p>
-            <Link href="/category/rose-floral" className="inline-flex items-center gap-1.5 text-xs font-bold text-white border-b border-white/50 pb-0.5 w-fit hover:border-white transition">
-              Shop Rose Collection
-              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-            </Link>
-          </div>
-        </div>
-
-        <div className="relative rounded-2xl overflow-hidden min-h-[200px] group">
-          <img
-            src="https://images.unsplash.com/photo-1519682577862-22b62b24cb12?auto=format&fit=crop&w=800&q=80"
-            alt="Oud Attar"
-            className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/88 to-stone-900/30" />
-          <div className="relative p-8 flex flex-col justify-end h-full min-h-[200px] space-y-2">
-            <span className="text-amber-300 text-xs font-bold uppercase tracking-widest">Oud & Woody</span>
-            <h4 className="text-2xl font-display font-bold text-white">The Scent of Kings</h4>
-            <p className="text-stone-300 text-sm">Aged agarwood from Assam & Cambodia — commanding, regal, timeless.</p>
-            <Link href="/category/oud-woody" className="inline-flex items-center gap-1.5 text-xs font-bold text-white border-b border-white/50 pb-0.5 w-fit hover:border-white transition">
-              Shop Oud Collection
-              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* New Arrivals */}
-      {newArrivals.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3">
-            <h3 className="text-xl font-display font-bold text-gray-800">New Arrivals</h3>
-            <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Just Added
-            </span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {newArrivals.map((prod) => (
-              <ProductCard
-                key={prod.id}
-                id={prod.id}
-                title={prod.title}
-                price={parseFloat(prod.price)}
-                halalCertified={prod.halalCertified}
-                imageUrl={prod.imageUrl}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Full Collection */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-end">
-          <h3 className="text-xl font-display font-bold text-gray-800">Full Collection</h3>
-          <span className="text-sm text-gray-500">{STATIC_PRODUCTS.length} attars</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {STATIC_PRODUCTS.map((prod) => (
-            <ProductCard
-              key={prod.id}
-              id={prod.id}
-              title={prod.title}
-              price={parseFloat(prod.price)}
-              halalCertified={prod.halalCertified}
-              imageUrl={prod.imageUrl}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* About Attar */}
-      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-8 md:p-12 text-center space-y-4">
-        <span className="inline-grid h-16 w-16 place-items-center rounded-2xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-100">
-          <FlaskConical className="h-8 w-8" strokeWidth={2} />
-        </span>
-        <h3 className="text-2xl font-display font-bold text-gray-900">What is Attar?</h3>
-        <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          Attar (also spelled Ittar) is a traditional, highly concentrated natural perfume oil derived from
-          botanical sources — flowers, herbs, spices, and resins — using centuries-old distillation techniques.
-          Free from alcohol and synthetic chemicals, attars are inherently halal and gentle on the skin, making
-          them the fragrance of choice for Muslims and natural fragrance lovers worldwide.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3 pt-2">
-          {["Alcohol-Free", "No Synthetics", "Long-Lasting", "Halal", "Skin-Safe", "Eco-Friendly"].map((tag) => (
-            <span key={tag} className="bg-white border border-amber-200 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full">
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom CTA */}
-      <div className="bg-gradient-to-r from-gray-900 to-stone-800 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between shadow-xl text-white">
-        <div className="space-y-2 mb-6 md:mb-0 md:w-2/3">
-          <h3 className="text-2xl font-display font-bold text-amber-400">Find Your Signature Scent</h3>
-          <p className="text-gray-300 max-w-lg">
-            Not sure where to start? Our curated gift sets let you explore multiple attars at once — the perfect way to discover your signature.
-          </p>
-        </div>
-        <Link
-          href="/category/gift-collections"
-          className="inline-flex items-center justify-center gap-2 bg-amber-400 text-gray-900 font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-amber-300 hover:-translate-y-0.5 transition-all w-full md:w-auto text-center"
-        >
-          Shop Gift Sets
-          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-        </Link>
       </div>
     </div>
   );

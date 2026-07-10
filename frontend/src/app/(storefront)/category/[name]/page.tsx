@@ -1,30 +1,55 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ProductCard from "@/components/product/product-card";
-import { STATIC_PRODUCTS, STATIC_CATEGORIES, getProductsByCategory } from "@/lib/static-data";
+import api from "@/lib/api";
 import { getCategoryIcon } from "@/lib/category-icons";
+import Link from "next/link";
 
 export default function CategoryPage({ params }: { params: { name: string } }) {
   const [sortBy, setSortBy] = useState("recommended");
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const category = STATIC_CATEGORIES.find((c) => c.slug === params.name);
-  const rawProducts = params.name === "all"
-    ? STATIC_PRODUCTS
-    : getProductsByCategory(params.name).length > 0
-    ? getProductsByCategory(params.name)
-    : STATIC_PRODUCTS;
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [prodRes, catRes] = await Promise.all([
+          api.get(`/catalog?limit=100${params.name !== "all" ? `&categorySlug=${params.name}` : ""}`),
+          api.get("/category"),
+        ]);
+        setProducts(prodRes.data.data || []);
+        setCategories(catRes.data || []);
+      } catch (err) {
+        console.error("Failed to load category page data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [params.name]);
 
-  const sorted = [...rawProducts].sort((a, b) => {
+  const category = categories.find((c) => c.slug === params.name);
+
+  const sorted = [...products].sort((a, b) => {
     if (sortBy === "price_low") return parseFloat(a.price) - parseFloat(b.price);
     if (sortBy === "price_high") return parseFloat(b.price) - parseFloat(a.price);
-    if (sortBy === "rating") return b.rating - a.rating;
-    return 0;
+    return 0; // Default sorting by creation or recommended
   });
 
-  const displayName = category?.name ?? decodeURIComponent(params.name).replace(/-/g, " ");
+  const displayName = category?.name ?? (params.name === "all" ? "All Products" : decodeURIComponent(params.name).replace(/-/g, " "));
   const displayDescription =
     category?.description ?? `Discover our finest ${displayName.toLowerCase()} attars.`;
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 w-full flex items-center justify-center">
+        <p className="text-gray-500 font-medium animate-pulse">Loading products...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
@@ -50,9 +75,25 @@ export default function CategoryPage({ params }: { params: { name: string } }) {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <div className="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto scrollbar-hide">
-          <button className="px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap bg-amber-500 text-white">
+          <Link
+            href="/category/all"
+            className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap transition ${
+              params.name === "all" ? "bg-amber-500 text-white" : "bg-gray-150 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
             All Products
-          </button>
+          </Link>
+          {categories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={`/category/${cat.slug}`}
+              className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap transition ${
+                params.name === cat.slug ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {cat.name}
+            </Link>
+          ))}
         </div>
 
         <div className="flex items-center space-x-2 shrink-0">
@@ -65,7 +106,6 @@ export default function CategoryPage({ params }: { params: { name: string } }) {
             <option value="recommended">Recommended</option>
             <option value="price_low">Price: Low to High</option>
             <option value="price_high">Price: High to Low</option>
-            <option value="rating">Top Rated</option>
           </select>
         </div>
       </div>

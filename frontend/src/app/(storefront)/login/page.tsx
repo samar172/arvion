@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
-      login(res.data.access_token, res.data.user);
+      login(res.data.access_token, res.data.user, res.data.refreshToken);
       if (res.data.user?.role === 'ADMIN') {
         window.location.href = "/admin";
       } else {

@@ -7,7 +7,7 @@ export class CatalogService {
   constructor(private prisma: PrismaService) {}
 
   async search(dto: SearchProductsDto) {
-    const { search, page = 1, limit = 10, minPrice, maxPrice, halalOnly } = dto;
+    const { search, categorySlug, page = 1, limit = 10, minPrice, maxPrice, halalOnly } = dto;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -22,6 +22,11 @@ export class CatalogService {
     // Halal Certified Filter
     if (halalOnly) {
       where.halalCertified = true;
+    }
+
+    // Category Filter
+    if (categorySlug) {
+      where.category = { slug: categorySlug };
     }
 
     // Text Search Logic (combines words matching both Title and Description)
@@ -45,7 +50,7 @@ export class CatalogService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { inventory: true },
+        include: { inventory: true, category: true },
       }),
     ]);
 
@@ -61,7 +66,7 @@ export class CatalogService {
   async findOne(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: { inventory: true },
+      include: { inventory: true, category: true },
     });
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
@@ -88,6 +93,7 @@ export class CatalogService {
           sku: dto.sku,
           halalCertified: dto.halalCertified || false,
           imageUrl: dto.imageUrl,
+          categoryId: dto.categoryId,
         },
       });
 
@@ -100,7 +106,7 @@ export class CatalogService {
 
       return tx.product.findUnique({
         where: { id: product.id },
-        include: { inventory: true },
+        include: { inventory: true, category: true },
       });
     });
   }
@@ -120,7 +126,7 @@ export class CatalogService {
     return this.prisma.product.update({
       where: { id },
       data: dto,
-      include: { inventory: true },
+      include: { inventory: true, category: true },
     });
   }
 

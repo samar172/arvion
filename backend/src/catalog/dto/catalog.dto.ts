@@ -27,6 +27,10 @@ export class CreateProductDto {
   @IsOptional()
   imageUrl?: string;
 
+  @IsString()
+  @IsOptional()
+  categoryId?: string;
+
   @IsNumber()
   @Min(0)
   @Type(() => Number)
@@ -60,12 +64,20 @@ export class UpdateProductDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  categoryId?: string;
 }
 
 export class SearchProductsDto {
   @IsString()
   @IsOptional()
   search?: string;
+
+  @IsString()
+  @IsOptional()
+  categorySlug?: string;
 
   @IsNumber()
   @Type(() => Number)

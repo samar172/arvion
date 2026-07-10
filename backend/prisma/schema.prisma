@@ -1,10 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model User {
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  passwordHash String?
+  name         String
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  address      String?
+  phone        String?  @unique
+  orders       Order[]
+}
+
+model Product {
+  id             String      @id @default(uuid())
+  title          String
+  description    String
+  price          Decimal
+  sku            String      @unique
+  halalCertified Boolean     @default(false)
+  imageUrl       String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  categoryId     String?
+  inventory      Inventory?
+  orderItems     OrderItem[]
+  category       Category?   @relation(fields: [categoryId], references: [id])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Inventory {
+  id        String   @id @default(uuid())
+  productId String   @unique
+  stock     Int      @default(0)
+  reserved  Int      @default(0)
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal
+  razorpayOrderId String?     @unique
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  customerName    String?
+  customerPhone   String?
+  shippingAddress String?
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  razorpayPaymentId String?       @unique
+  razorpaySignature String?
+  status            PaymentStatus @default(PENDING)
+  amount            Decimal
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  order             Order         @relation(fields: [orderId], references: [id])
 }
 
 enum Role {
@@ -28,73 +115,4 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
-}
-
-model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String
-  name          String
-  role          Role      @default(CUSTOMER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  orders        Order[]
-}
-
-model Product {
-  id             String      @id @default(uuid())
-  title          String
-  description    String
-  price          Decimal     
-  sku            String      @unique
-  halalCertified Boolean     @default(false)
-  imageUrl       String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  inventory      Inventory?
-  orderItems     OrderItem[]
-}
-
-model Inventory {
-  id        String   @id @default(uuid())
-  productId String   @unique
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  stock     Int      @default(0)
-  reserved  Int      @default(0) // Quantity reserved for pending checkouts
-  updatedAt DateTime @updatedAt
-}
-
-model Order {
-  id             String      @id @default(uuid())
-  userId         String
-  user           User        @relation(fields: [userId], references: [id])
-  status         OrderStatus @default(PENDING)
-  totalAmount    Decimal     
-  razorpayOrderId String?    @unique // Razorpay Order ID link
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  items          OrderItem[]
-  payments       Payment[]
-}
-
-model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Decimal   // Price locked at purchase time
-}
-
-model Payment {
-  id                 String        @id @default(uuid())
-  orderId            String
-  order              Order         @relation(fields: [orderId], references: [id])
-  razorpayPaymentId  String?       @unique
-  razorpaySignature  String?
-  status             PaymentStatus @default(PENDING)
-  amount             Decimal       
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
 }

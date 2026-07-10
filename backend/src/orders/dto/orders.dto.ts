@@ -17,6 +17,14 @@ export class CheckoutDto {
   @ValidateNested({ each: true })
   @Type(() => CheckoutItemDto)
   items: CheckoutItemDto[];
+
+  @IsString()
+  @IsNotEmpty()
+  customerName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  shippingAddress: string;
 }
 
 export class VerifyPaymentDto {

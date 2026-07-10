@@ -2,20 +2,24 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { Package } from "lucide-react";
+import { Package, Upload, Edit2 } from "lucide-react";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   const [newProduct, setNewProduct] = useState({
     title: "",
     description: "",
     sku: "",
     price: "",
     halalCertified: false,
-    imageUrl: ""
+    imageUrl: "",
+    categoryId: ""
   });
 
   const fetchProducts = async () => {
@@ -30,25 +34,85 @@ export default function AdminProductsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/category');
+      setCategories(res.data || []);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      setUploading(true);
+      const res = await api.post("/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setNewProduct(prev => ({ ...prev, imageUrl: res.data.url }));
+    } catch (err) {
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...newProduct,
+      price: parseFloat(newProduct.price),
+      categoryId: newProduct.categoryId || null
+    };
     try {
-      await api.post('/catalog', {
-        ...newProduct,
-        price: parseFloat(newProduct.price)
-      });
+      if (editingId) {
+        await api.patch(`/catalog/${editingId}`, payload);
+      } else {
+        await api.post('/catalog', payload);
+      }
       setIsAdding(false);
+      setEditingId(null);
       setNewProduct({
-        title: "", description: "", sku: "", price: "", halalCertified: false, imageUrl: ""
+        title: "", description: "", sku: "", price: "", halalCertified: false, imageUrl: "", categoryId: ""
       });
       fetchProducts();
     } catch (err: any) {
-      alert("Failed to add product: " + err.response?.data?.message);
+      alert(`Failed to ${editingId ? "update" : "add"} product: ` + err.response?.data?.message);
     }
+  };
+
+  const handleEdit = (product: any) => {
+    setNewProduct({
+      title: product.title,
+      description: product.description || "",
+      sku: product.sku,
+      price: String(product.price),
+      halalCertified: product.halalCertified,
+      imageUrl: product.imageUrl || "",
+      categoryId: product.categoryId || ""
+    });
+    setEditingId(product.id);
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancel = () => {
+    setIsAdding(false);
+    setEditingId(null);
+    setNewProduct({
+      title: "", description: "", sku: "", price: "", halalCertified: false, imageUrl: "", categoryId: ""
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -66,8 +130,8 @@ export default function AdminProductsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Products Catalog</h1>
-        <button 
-          onClick={() => setIsAdding(!isAdding)}
+        <button
+          onClick={() => (isAdding ? handleCancel() : setIsAdding(true))}
           className="bg-brand-emerald text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-800"
         >
           {isAdding ? "Cancel" : "+ Add New Product"}
@@ -76,7 +140,7 @@ export default function AdminProductsPage() {
 
       {isAdding && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Add New Product</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">{editingId ? "Edit Product" : "Add New Product"}</h2>
           <form onSubmit={handleAddSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Product Title</label>
@@ -110,7 +174,30 @@ export default function AdminProductsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Image URL</label>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Category</label>
+              <select
+                value={newProduct.categoryId}
+                onChange={e => setNewProduct({...newProduct, categoryId: e.target.value})}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-brand-emerald focus:border-brand-emerald"
+              >
+                <option value="">No Category</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Image Upload (Cloudinary)</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-brand-emerald hover:file:bg-emerald-100 cursor-pointer" 
+              />
+              {uploading && <span className="text-xs text-brand-emerald animate-pulse mt-1 block">Uploading to Cloudinary...</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Or Image URL</label>
               <input 
                 type="url" 
                 value={newProduct.imageUrl}
@@ -139,7 +226,7 @@ export default function AdminProductsPage() {
             </div>
             <div className="md:col-span-2 flex justify-end">
               <button type="submit" className="bg-brand-emerald text-white px-6 py-2 rounded-lg font-bold hover:bg-emerald-800">
-                Save Product
+                {editingId ? "Save Changes" : "Save Product"}
               </button>
             </div>
           </form>
@@ -147,7 +234,7 @@ export default function AdminProductsPage() {
       )}
 
       {/* Products Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading products...</div>
         ) : (
@@ -155,6 +242,7 @@ export default function AdminProductsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">SKU</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Price</th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
@@ -175,6 +263,15 @@ export default function AdminProductsPage() {
                       </div>
                     </div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {product.category ? (
+                      <span className="bg-emerald-50 text-brand-emerald px-2.5 py-1 rounded-full text-xs font-bold border border-emerald-100">
+                        {product.category.name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">Uncategorized</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                     {product.sku}
                   </td>
@@ -187,14 +284,16 @@ export default function AdminProductsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                    <button className="text-brand-emerald hover:text-emerald-800 font-bold">Edit</button>
-                    <button onClick={() => handleDelete(product.id)} className="text-red-500 hover:text-red-700 font-bold">Delete</button>
+                    <button onClick={() => handleEdit(product)} className="text-indigo-600 hover:text-indigo-900 inline-flex items-center gap-1 font-bold text-xs">
+                      <Edit2 className="h-3 w-3" /> Edit
+                    </button>
+                    <button onClick={() => handleDelete(product.id)} className="text-red-500 hover:text-red-700 font-bold text-xs">Delete</button>
                   </td>
                 </tr>
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     No products found. Add one above.
                   </td>
                 </tr>

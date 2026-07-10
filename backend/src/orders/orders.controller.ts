@@ -34,6 +34,13 @@ export class OrdersController {
     return this.ordersService.getAllOrders();
   }
 
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  getOrderById(@Param('id') id: string) {
+    return this.ordersService.getOrderById(id);
+  }
+
   @Put(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')

@@ -18,7 +18,7 @@ interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   total: number;
-  checkout: () => Promise<any>;
+  checkout: (options?: { customerName?: string, shippingAddress?: string }) => Promise<any>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -83,11 +83,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const checkout = async () => {
+  const checkout = async (options?: { customerName?: string, shippingAddress?: string }) => {
     if (items.length === 0) throw new Error("Cart is empty");
     
     const res = await api.post('/orders/checkout', {
-      items: items.map(item => ({ productId: item.productId, quantity: item.quantity }))
+      items: items.map(item => ({ productId: item.productId, quantity: item.quantity })),
+      ...options
     });
     
     return res.data;

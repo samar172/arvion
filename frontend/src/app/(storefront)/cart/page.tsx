@@ -15,62 +15,11 @@ export default function CartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const checkoutData = await checkout();
-
-      const options = {
-        key: checkoutData.key,
-        amount: checkoutData.amount * 100,
-        currency: checkoutData.currency,
-        name: "Arvion",
-        description: "Test Transaction",
-        order_id: checkoutData.razorpayOrderId,
-        handler: async function (response: any) {
-          // Do NOT trust the browser: confirm the payment on the server, which
-          // validates Razorpay's HMAC signature before marking the order paid.
-          try {
-            await api.post("/orders/verify-payment", {
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-            clearCart();
-            window.location.href = `/order-success?order=${checkoutData.orderId}`;
-          } catch (err: any) {
-            alert(
-              "We received your payment but could not confirm it instantly. " +
-                "Don't worry — it will be verified automatically. " +
-                (err.response?.data?.message || "")
-            );
-            window.location.href = "/";
-          }
-        },
-        prefill: {
-          name: user?.name || "",
-          email: user?.email || "",
-        },
-        theme: {
-          color: "#065f46",
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.on("payment.failed", function (response: any) {
-        alert(`Payment failed: ${response.error.description}`);
-      });
-      rzp.open();
-
-    } catch (err: any) {
-      alert("Checkout failed: " + (err.response?.data?.message || err.message));
-    } finally {
-      setLoading(false);
+      router.push('/login/customer?redirect=/checkout');
+    } else {
+      router.push('/checkout');
     }
   };
 

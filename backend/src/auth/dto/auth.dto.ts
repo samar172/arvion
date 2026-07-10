@@ -28,3 +28,10 @@ export class LoginDto {
   @IsNotEmpty()
   password: string;
 }
+
+export class CustomerLoginDto {
+  @IsString()
+  @IsNotEmpty()
+  idToken: string; // Firebase ID Token
+}
+

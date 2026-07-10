@@ -8,15 +8,18 @@ import { useRouter } from 'next/navigation';
 interface User {
   id: string;
   name: string;
-  email: string;
+  email?: string;
+  phone?: string;
+  address?: string;
   role: 'CUSTOMER' | 'ADMIN' | 'STAFF';
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (token: string, userData: User) => void;
+  login: (token: string, userData: User, refreshToken?: string) => void;
   logout: () => void;
+  updateUser: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,19 +47,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser();
   }, []);
 
-  const login = (token: string, userData: User) => {
+  const login = (token: string, userData: User, refreshToken?: string) => {
     Cookies.set('arvion_token', token, { expires: 7 }); // 7 days
+    if (refreshToken) {
+      Cookies.set('arvion_refresh', refreshToken, { expires: 7 });
+    }
     setUser(userData);
   };
 
   const logout = () => {
     Cookies.remove('arvion_token');
+    Cookies.remove('arvion_refresh');
     setUser(null);
-    router.push('/login');
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      router.push('/login');
+    } else {
+      router.push('/login/customer');
+    }
+  };
+
+  const updateUser = (data: Partial<User>) => {
+    setUser((prev) => prev ? { ...prev, ...data } : null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

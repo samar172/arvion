@@ -101,7 +101,7 @@ export default function AdminOrdersPage() {
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
                     <select 
                       value={order.status}
                       onChange={(e) => updateOrderStatus(order.id, e.target.value)}
@@ -112,6 +112,9 @@ export default function AdminOrdersPage() {
                       <option value="DELIVERED">Delivered</option>
                       <option value="CANCELLED">Cancelled</option>
                     </select>
+                    <a href={`/admin/orders/${order.id}`} className="text-brand-emerald hover:text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md text-xs font-bold transition-colors">
+                      View
+                    </a>
                   </td>
                 </tr>
               ))}

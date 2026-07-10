@@ -5,17 +5,18 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaService } from '../prisma.service';
 import { JwtStrategy } from './jwt.strategy';
+import { FirebaseService } from './firebase.service';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'super-secret-key',
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '7d' },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PrismaService],
+  providers: [AuthService, JwtStrategy, PrismaService, FirebaseService],
   exports: [AuthService],
 })
 export class AuthModule {}

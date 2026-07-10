@@ -1,24 +1,56 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { getProductById, STATIC_PRODUCTS } from "@/lib/static-data";
+import api from "@/lib/api";
 import ProductCard from "@/components/product/product-card";
 import { Star, MapPin, Droplet, ShieldCheck, Check, Truck, RotateCcw, Lock, FlaskConical } from "lucide-react";
 
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
-  const product = getProductById(params.id);
+  const [product, setProduct] = useState<any>(null);
+  const [related, setRelated] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"description" | "scent" | "benefits">("description");
   const { items, addToCart } = useCart();
   const { user } = useAuth();
   const router = useRouter();
 
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get(`/catalog/${params.id}`);
+        const productData = res.data;
+        setProduct(productData);
+
+        if (productData.category?.slug) {
+          const relatedRes = await api.get(`/catalog?limit=5&categorySlug=${productData.category.slug}`);
+          const relatedList = (relatedRes.data.data || []).filter((p: any) => p.id !== productData.id);
+          setRelated(relatedList.slice(0, 4));
+        }
+      } catch (err) {
+        console.error("Failed to load product details", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProductDetails();
+  }, [params.id]);
+
   const cartItem = product ? items.find((item) => item.productId === product.id) : null;
   const isInCart = !!cartItem;
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 w-full flex items-center justify-center">
+        <p className="text-gray-500 font-medium animate-pulse">Loading product details...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -45,7 +77,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
 
   const handleBuyNow = () => {
     if (!user) {
-      router.push("/login");
+      router.push(`/login/customer?redirect=/products/${product.id}`);
       return;
     }
     if (!isInCart) handleAddToCart();
@@ -56,10 +88,23 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
     ? (parseFloat(product.price) / (1 - product.discount / 100)).toFixed(0)
     : null;
 
-  // Related products from same category, excluding current
-  const related = STATIC_PRODUCTS.filter(
-    (p) => p.categorySlug === product.categorySlug && p.id !== product.id
-  ).slice(0, 4);
+  // Provide fallbacks for static layout fields since DB-driven items might omit them
+  const fallbackVolume = product.volume || "12ml";
+  const fallbackOrigin = product.origin || "Kannauj, India";
+  const fallbackRating = product.rating || 4.8;
+  const fallbackReviewCount = product.reviewCount || 24;
+  const fallbackBenefits = product.benefits || [
+    "100% pure steam-distilled extract",
+    "Alcohol-free and skin-safe formula",
+    "Long-lasting projection for 8+ hours",
+    "Inherently halal and vegan friendly"
+  ];
+  const fallbackScentNotes = product.scentNotes || {
+    top: ["Citrus", "Floral Notes"],
+    heart: ["Spices", "Soft Woods"],
+    base: ["Amber", "White Musk"]
+  };
+  const fallbackLongDescription = product.longDescription || product.description;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-12">
@@ -67,10 +112,14 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
       <nav className="flex items-center space-x-2 text-sm text-gray-500">
         <Link href="/" className="hover:text-amber-700">Home</Link>
         <span>/</span>
-        <Link href={`/category/${product.categorySlug}`} className="hover:text-amber-700">
-          {product.categoryName}
-        </Link>
-        <span>/</span>
+        {product.category && (
+          <>
+            <Link href={`/category/${product.category.slug}`} className="hover:text-amber-700">
+              {product.category.name}
+            </Link>
+            <span>/</span>
+          </>
+        )}
         <span className="text-gray-800 font-medium truncate max-w-[200px]">{product.title}</span>
       </nav>
 
@@ -99,10 +148,10 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
           {/* Origin & volume tags */}
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-bold px-3 py-1.5 rounded-full">
-              <MapPin className="h-3.5 w-3.5" strokeWidth={2.25} /> {product.origin}
+              <MapPin className="h-3.5 w-3.5" strokeWidth={2.25} /> {fallbackOrigin}
             </span>
             <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full">
-              <Droplet className="h-3.5 w-3.5" strokeWidth={2.25} /> {product.volume}
+              <Droplet className="h-3.5 w-3.5" strokeWidth={2.25} /> {fallbackVolume}
             </span>
             <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full">
               <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} /> Alcohol-Free
@@ -118,14 +167,14 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
                   key={i}
-                  className={`h-4 w-4 ${i < Math.floor(product.rating) ? "text-amber-400" : "text-gray-200"}`}
+                  className={`h-4 w-4 ${i < Math.floor(fallbackRating) ? "text-amber-400" : "text-gray-200"}`}
                   strokeWidth={2}
                   fill="currentColor"
                 />
               ))}
             </div>
-            <span className="text-sm font-bold text-gray-600">{product.rating}</span>
-            <span className="text-xs text-gray-400">({product.reviewCount} reviews)</span>
+            <span className="text-sm font-bold text-gray-600">{fallbackRating}</span>
+            <span className="text-xs text-gray-400">({fallbackReviewCount} reviews)</span>
           </div>
 
           {/* Title */}
@@ -167,7 +216,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
             </div>
 
             {activeTab === "description" && (
-              <p className="text-gray-600 text-sm leading-relaxed">{product.longDescription}</p>
+              <p className="text-gray-600 text-sm leading-relaxed">{fallbackLongDescription}</p>
             )}
 
             {activeTab === "scent" && (
@@ -181,7 +230,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
                     }`}>
                       {layer}
                     </span>
-                    <p className="text-sm text-gray-600 pt-1">{product.scentNotes[layer].join(", ")}</p>
+                    <p className="text-sm text-gray-600 pt-1">{fallbackScentNotes[layer]?.join(", ")}</p>
                   </div>
                 ))}
               </div>
@@ -189,7 +238,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
 
             {activeTab === "benefits" && (
               <ul className="space-y-2">
-                {product.benefits.map((b) => (
+                {fallbackBenefits.map((b: string) => (
                   <li key={b} className="flex items-center gap-2 text-sm text-gray-700">
                     <Check className="h-4 w-4 shrink-0 text-amber-500" strokeWidth={3} />
                     <span>{b}</span>
@@ -257,7 +306,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
       {related.length > 0 && (
         <div className="space-y-4 border-t border-gray-100 pt-10">
           <h3 className="text-xl font-display font-bold text-gray-800">
-            More from {product.categoryName}
+            More from {product.category?.name || "this collection"}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {related.map((p) => (

@@ -1,9 +1,25 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { Droplet, ShoppingBag, User, CheckCircle2 } from "lucide-react";
+import api from "@/lib/api";
+
+function useNavCategories() {
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    api
+      .get("/category")
+      .then((res) => setCategories(res.data || []))
+      .catch((err) => console.error("Failed to load nav categories", err));
+  }, []);
+
+  return categories;
+}
 
 function Logo({ dark = false }: { dark?: boolean }) {
   return (
@@ -21,19 +37,25 @@ function Logo({ dark = false }: { dark?: boolean }) {
 
 function Header() {
   const { items } = useCart();
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const categories = useNavCategories();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/90 shadow-sm backdrop-blur-md">
+    <header className="hidden md:block sticky top-0 z-50 border-b border-gray-100 bg-white/90 shadow-sm backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <Logo />
 
         {/* Nav */}
         <nav className="hidden items-center gap-7 text-sm font-semibold text-gray-600 md:flex">
           <Link href="/" className="transition hover:text-amber-700">Home</Link>
-          <Link href="/category/rose-floral" className="transition hover:text-amber-700">Collections</Link>
-          <Link href="/category/gift-collections" className="transition hover:text-amber-700">Gift Sets</Link>
-          <Link href="/category/exotic-rare" className="transition hover:text-amber-700">Rare Attars</Link>
+          {categories.slice(0, 4).map((cat) => (
+            <Link key={cat.id} href={`/category/${cat.slug}`} className="transition hover:text-amber-700">
+              {cat.name}
+            </Link>
+          ))}
+          <Link href="/category/all" className="transition hover:text-amber-700">All Products</Link>
         </nav>
 
         {/* Actions */}
@@ -52,15 +74,68 @@ function Header() {
             )}
           </Link>
           <Link
-            href="/login"
+            href={user ? "/profile" : `/login/customer?redirect=${encodeURIComponent(pathname)}`}
             className="hidden items-center gap-1.5 text-sm font-bold text-gray-600 transition hover:text-amber-700 sm:flex"
           >
             <User className="h-[18px] w-[18px]" strokeWidth={2.25} />
-            Sign In
+            {user ? "My Profile" : "Sign In"}
           </Link>
         </div>
       </div>
     </header>
+  );
+}
+
+function MobileTopAppBar() {
+  return (
+    <header className="md:hidden fixed top-0 left-0 w-full z-50 flex items-center justify-between px-container-margin py-sm bg-surface border-b border-outline-variant">
+      <div className="flex items-center gap-xs">
+        <span className="material-symbols-outlined filled text-primary">location_on</span>
+        <div className="flex flex-col">
+          <span className="text-badge-micro text-outline font-label-bold uppercase tracking-wider">Deliver to Home</span>
+          <span className="text-title-md font-extrabold text-on-surface leading-tight">Arvion</span>
+        </div>
+      </div>
+      <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden border border-outline-variant">
+        <span className="material-symbols-outlined text-on-secondary-container">person</span>
+      </div>
+    </header>
+  );
+}
+
+function MobileBottomNavBar() {
+  const { items } = useCart();
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const { user } = useAuth();
+  const pathname = usePathname();
+
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-surface border-t border-outline-variant px-sm py-xs pb-safe pb-4">
+      <div className="flex justify-around items-center">
+        <Link href="/" className="flex flex-col items-center p-xs text-primary group">
+          <span className="material-symbols-outlined filled text-2xl group-hover:scale-110 transition-transform">home</span>
+          <span className="text-badge-micro font-label-bold mt-1">Home</span>
+        </Link>
+        <Link href="/category/all" className="flex flex-col items-center p-xs text-outline group">
+          <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">grid_view</span>
+          <span className="text-badge-micro font-label-bold mt-1">Categories</span>
+        </Link>
+        <Link href="/cart" className="flex flex-col items-center p-xs text-outline relative group">
+          <div className="relative">
+            <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">shopping_cart</span>
+            {totalItems > 0 && (
+              <span className="absolute -top-1 -right-1 bg-error text-on-error text-badge-micro font-label-bold w-4 h-4 rounded-full flex items-center justify-center">{totalItems}</span>
+            )}
+          </div>
+          <span className="text-badge-micro font-label-bold mt-1">Cart</span>
+        </Link>
+        <Link href={user ? "/profile" : `/login/customer?redirect=${encodeURIComponent(pathname)}`} className="flex flex-col items-center p-xs text-outline group">
+          <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">person</span>
+          <span className="text-badge-micro font-label-bold mt-1">Profile</span>
+        </Link>
+      </div>
+    </nav>
   );
 }
 
@@ -73,11 +148,15 @@ const WHY_ATTAR = [
 ];
 
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
+  const categories = useNavCategories();
+
   return (
     <div className="flex flex-1 flex-col">
       <Header />
-      <main className="flex flex-1 flex-col">{children}</main>
-      <footer className="border-t bg-gray-900 px-6 py-12 text-gray-400">
+      <MobileTopAppBar />
+      <main className="flex flex-1 flex-col md:pt-0 pt-16 pb-20 md:pb-0">{children}</main>
+      <MobileBottomNavBar />
+      <footer className="hidden md:block border-t bg-gray-900 px-6 py-12 text-gray-400">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 md:grid-cols-3">
           <div>
             <div className="mb-3">
@@ -90,11 +169,12 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
           <div>
             <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white">Collections</p>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/category/rose-floral" className="transition hover:text-amber-400">Rose &amp; Floral</Link></li>
-              <li><Link href="/category/oud-woody" className="transition hover:text-amber-400">Oud &amp; Woody</Link></li>
-              <li><Link href="/category/musk-amber" className="transition hover:text-amber-400">Musk &amp; Amber</Link></li>
-              <li><Link href="/category/exotic-rare" className="transition hover:text-amber-400">Exotic &amp; Rare</Link></li>
-              <li><Link href="/category/gift-collections" className="transition hover:text-amber-400">Gift Collections</Link></li>
+              {categories.map((cat) => (
+                <li key={cat.id}>
+                  <Link href={`/category/${cat.slug}`} className="transition hover:text-amber-400">{cat.name}</Link>
+                </li>
+              ))}
+              <li><Link href="/category/all" className="transition hover:text-amber-400">All Products</Link></li>
             </ul>
           </div>
           <div>
