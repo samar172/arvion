@@ -1,12 +1,22 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../lib/api';
 
 interface CartItem {
   productId: string;
   title: string;
   price: number;
+  quantity: number;
+  imageUrl?: string;
+}
+
+/** The most recent add, used to pop the "added to bag" bar. */
+export interface LastAdded {
+  /** Changes on every add so re-adding the same product replays the animation. */
+  key: number;
+  productId: string;
+  title: string;
   quantity: number;
   imageUrl?: string;
 }
@@ -18,13 +28,16 @@ interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   total: number;
-  checkout: (options?: { customerName?: string, shippingAddress?: string }) => Promise<any>;
+  lastAdded: LastAdded | null;
+  dismissLastAdded: () => void;
+  checkout: (options?: { customerName?: string, shippingAddress?: string, couponCode?: string }) => Promise<any>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [lastAdded, setLastAdded] = useState<LastAdded | null>(null);
 
   // Load from local storage
   useEffect(() => {
@@ -53,15 +66,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             : item
         );
       }
-      return [...prev, { 
-        productId: product.id, 
-        title: product.title, 
-        price: product.price, 
+      return [...prev, {
+        productId: product.id,
+        title: product.title,
+        price: product.price,
         quantity,
-        imageUrl: product.imageUrl 
+        imageUrl: product.imageUrl
       }];
     });
+
+    setLastAdded({
+      key: Date.now(),
+      productId: product.id,
+      title: product.title,
+      quantity,
+      imageUrl: product.imageUrl,
+    });
   };
+
+  const dismissLastAdded = useCallback(() => setLastAdded(null), []);
 
   const removeFromCart = (productId: string) => {
     setItems(prev => prev.filter(item => item.productId !== productId));
@@ -79,11 +102,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => {
     setItems([]);
+    setLastAdded(null);
   };
 
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const checkout = async (options?: { customerName?: string, shippingAddress?: string }) => {
+  const checkout = async (options?: { customerName?: string, shippingAddress?: string, couponCode?: string }) => {
     if (items.length === 0) throw new Error("Cart is empty");
     
     const res = await api.post('/orders/checkout', {
@@ -95,8 +119,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CartContext.Provider value={{ 
-      items, addToCart, removeFromCart, updateQuantity, clearCart, total, checkout 
+    <CartContext.Provider value={{
+      items, addToCart, removeFromCart, updateQuantity, clearCart, total,
+      lastAdded, dismissLastAdded, checkout
     }}>
       {children}
     </CartContext.Provider>

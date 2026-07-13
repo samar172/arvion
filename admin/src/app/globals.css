@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * AL-RIZVI admin palette. Values are bare HSL triplets because the Tailwind
+   * config wraps every token in hsl(...) — shadcn's default oklch values would
+   * produce invalid colors there.
+   */
+  :root {
+    --background: 40 45% 94%;
+    --foreground: 150 24% 11%;
+    --card: 42 62% 98%;
+    --card-foreground: 150 24% 11%;
+    --popover: 42 62% 98%;
+    --popover-foreground: 150 24% 11%;
+    --primary: 160 64% 14%;
+    --primary-foreground: 40 45% 94%;
+    --secondary: 42 62% 96%;
+    --secondary-foreground: 160 64% 14%;
+    --muted: 42 40% 92%;
+    --muted-foreground: 139 8% 45%;
+    --accent: 39 48% 57%;
+    --accent-foreground: 160 64% 14%;
+    --destructive: 3 71% 41%;
+    --destructive-foreground: 40 45% 94%;
+    --border: 44 32% 84%;
+    --input: 44 32% 84%;
+    --ring: 39 48% 57%;
+    --chart-1: 160 64% 14%;
+    --chart-2: 39 48% 57%;
+    --chart-3: 160 30% 32%;
+    --chart-4: 41 42% 74%;
+    --chart-5: 139 12% 55%;
+    --radius: 0.35rem;
+    --sidebar: 162 55% 11%;
+    --sidebar-foreground: 40 20% 88%;
+    --sidebar-primary: 39 48% 57%;
+    --sidebar-primary-foreground: 160 64% 14%;
+    --sidebar-accent: 160 45% 18%;
+    --sidebar-accent-foreground: 40 45% 94%;
+    --sidebar-border: 160 30% 20%;
+    --sidebar-ring: 39 48% 57%;
+  }
+
+  .dark {
+    --background: 162 55% 8%;
+    --foreground: 40 30% 92%;
+    --card: 162 45% 11%;
+    --card-foreground: 40 30% 92%;
+    --popover: 162 45% 11%;
+    --popover-foreground: 40 30% 92%;
+    --primary: 39 48% 57%;
+    --primary-foreground: 160 64% 12%;
+    --secondary: 160 30% 16%;
+    --secondary-foreground: 40 30% 92%;
+    --muted: 160 25% 16%;
+    --muted-foreground: 139 10% 65%;
+    --accent: 160 35% 20%;
+    --accent-foreground: 40 30% 92%;
+    --destructive: 3 62% 52%;
+    --destructive-foreground: 40 30% 92%;
+    --border: 160 25% 20%;
+    --input: 160 25% 22%;
+    --ring: 39 48% 57%;
+    --chart-1: 39 48% 57%;
+    --chart-2: 160 35% 45%;
+    --chart-3: 41 42% 74%;
+    --chart-4: 139 20% 55%;
+    --chart-5: 40 30% 85%;
+    --sidebar: 162 60% 7%;
+    --sidebar-foreground: 40 20% 88%;
+    --sidebar-primary: 39 48% 57%;
+    --sidebar-primary-foreground: 160 64% 12%;
+    --sidebar-accent: 160 35% 16%;
+    --sidebar-accent-foreground: 40 30% 92%;
+    --sidebar-border: 160 25% 18%;
+    --sidebar-ring: 39 48% 57%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+  }
+  h1,
+  h2 {
+    font-family: var(--font-cormorant), Georgia, serif;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

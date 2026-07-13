@@ -1,5 +1,8 @@
-import { IsNotEmpty, IsString, IsNumber, IsBoolean, IsOptional, Min, IsUrl } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsNotEmpty, IsString, IsNumber, IsBoolean, IsOptional, Min, IsIn } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+
+const toBool = ({ value }: { value: any }) =>
+  value === true || value === 'true' || value === '1';
 
 export class CreateProductDto {
   @IsString()
@@ -15,6 +18,12 @@ export class CreateProductDto {
   @Type(() => Number)
   price: number;
 
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  @IsOptional()
+  compareAtPrice?: number;
+
   @IsString()
   @IsNotEmpty()
   sku: string;
@@ -23,9 +32,21 @@ export class CreateProductDto {
   @IsOptional()
   halalCertified?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  isFeatured?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  images?: string;
 
   @IsString()
   @IsOptional()
@@ -53,6 +74,12 @@ export class UpdateProductDto {
   @IsOptional()
   price?: number;
 
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  @IsOptional()
+  compareAtPrice?: number | null;
+
   @IsString()
   @IsOptional()
   sku?: string;
@@ -61,9 +88,21 @@ export class UpdateProductDto {
   @IsOptional()
   halalCertified?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  isFeatured?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  images?: string;
 
   @IsString()
   @IsOptional()
@@ -102,7 +141,27 @@ export class SearchProductsDto {
   maxPrice?: number;
 
   @IsBoolean()
-  @Type(() => Boolean)
+  @Transform(toBool)
   @IsOptional()
   halalOnly?: boolean;
+
+  @IsBoolean()
+  @Transform(toBool)
+  @IsOptional()
+  featuredOnly?: boolean;
+
+  @IsBoolean()
+  @Transform(toBool)
+  @IsOptional()
+  onSaleOnly?: boolean;
+
+  @IsBoolean()
+  @Transform(toBool)
+  @IsOptional()
+  includeInactive?: boolean;
+
+  @IsString()
+  @IsIn(['newest', 'price_low', 'price_high', 'featured'])
+  @IsOptional()
+  sort?: string;
 }

@@ -2,13 +2,19 @@
 
 import { AuthProvider } from './AuthContext';
 import { CartProvider } from './CartContext';
+import { SettingsProvider } from './SettingsContext';
+import { ToastProvider } from './ToastContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <CartProvider>
-        {children}
-      </CartProvider>
-    </AuthProvider>
+    <SettingsProvider>
+      <AuthProvider>
+        <CartProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </CartProvider>
+      </AuthProvider>
+    </SettingsProvider>
   );
 }

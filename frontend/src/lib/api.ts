@@ -20,11 +20,7 @@ function redirectToLogin() {
   Cookies.remove('arvion_token');
   Cookies.remove('arvion_refresh');
   if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-    if (window.location.pathname.startsWith('/admin')) {
-      window.location.href = '/login';
-    } else {
-      window.location.href = `/login/customer?redirect=${encodeURIComponent(window.location.pathname)}`;
-    }
+    window.location.href = `/login/customer?redirect=${encodeURIComponent(window.location.pathname)}`;
   }
 }
 

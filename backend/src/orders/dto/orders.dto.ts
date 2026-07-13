@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsArray, ValidateNested, IsNumber, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, ValidateNested, IsNumber, Min, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CheckoutItemDto {
@@ -25,6 +25,10 @@ export class CheckoutDto {
   @IsString()
   @IsNotEmpty()
   shippingAddress: string;
+
+  @IsString()
+  @IsOptional()
+  couponCode?: string;
 }
 
 export class VerifyPaymentDto {

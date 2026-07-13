@@ -11,6 +11,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { CategoryModule } from './category/category.module';
 import { UploadModule } from './upload/upload.module';
 import { UsersModule } from './users/users.module';
+import { BannersModule } from './banners/banners.module';
+import { CouponsModule } from './coupons/coupons.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { UsersModule } from './users/users.module';
     CategoryModule,
     UploadModule,
     UsersModule,
+    BannersModule,
+    CouponsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, RedisService],

@@ -25,15 +25,53 @@ model Product {
   title          String
   description    String
   price          Decimal
+  compareAtPrice Decimal?
   sku            String      @unique
   halalCertified Boolean     @default(false)
+  isFeatured     Boolean     @default(false)
+  isActive       Boolean     @default(true)
   imageUrl       String?
+  images         String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   categoryId     String?
   inventory      Inventory?
   orderItems     OrderItem[]
   category       Category?   @relation(fields: [categoryId], references: [id])
+}
+
+model Banner {
+  id        String   @id @default(uuid())
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  ctaLabel  String?
+  link      String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Coupon {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  type           String    @default("PERCENT") // PERCENT | FIXED
+  value          Decimal
+  minOrderAmount Decimal?
+  maxDiscount    Decimal?
+  usageLimit     Int?
+  usedCount      Int       @default(0)
+  active         Boolean   @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 model Category {
@@ -61,6 +99,9 @@ model Order {
   userId          String
   status          OrderStatus @default(PENDING)
   totalAmount     Decimal
+  subtotalAmount  Decimal?
+  discountAmount  Decimal?
+  couponCode      String?
   razorpayOrderId String?     @unique
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

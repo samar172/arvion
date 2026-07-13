@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RedisService } from '../redis.service';
+import { CouponsService } from '../coupons/coupons.service';
+import { SettingsService } from '../settings/settings.service';
 import { CheckoutDto, VerifyPaymentDto } from './dto/orders.dto';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
@@ -12,6 +14,8 @@ export class OrdersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private couponsService: CouponsService,
+    private settingsService: SettingsService,
   ) {}
 
   onModuleInit() {
@@ -60,6 +64,26 @@ export class OrdersService implements OnModuleInit {
         });
       }
 
+      // Apply coupon (server-side validation — never trust client math)
+      const subtotalAmount = totalAmount;
+      let discountAmount = 0;
+      let appliedCoupon: string | null = null;
+      if (dto.couponCode) {
+        const result = await this.couponsService.validate(dto.couponCode, subtotalAmount);
+        discountAmount = result.discount;
+        appliedCoupon = result.code;
+      }
+
+      // Shipping fee from store settings (free over threshold)
+      const settings = await this.settingsService.getAll();
+      const freeThreshold = Number(settings.freeShippingThreshold) || 0;
+      const shippingFee =
+        subtotalAmount - discountAmount >= freeThreshold
+          ? 0
+          : Number(settings.shippingFee) || 0;
+
+      totalAmount = Math.max(0, subtotalAmount - discountAmount + shippingFee);
+
       // Fetch user to get their phone
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -89,6 +113,9 @@ export class OrdersService implements OnModuleInit {
           data: {
             userId,
             totalAmount,
+            subtotalAmount,
+            discountAmount,
+            couponCode: appliedCoupon,
             status: 'PENDING',
             customerName: dto.customerName,
             shippingAddress: dto.shippingAddress,
@@ -136,6 +163,10 @@ export class OrdersService implements OnModuleInit {
         orderId: order.id,
         razorpayOrderId: razorpayOrder.id,
         amount: totalAmount,
+        subtotal: subtotalAmount,
+        discount: discountAmount,
+        shipping: shippingFee,
+        couponCode: appliedCoupon,
         currency: 'INR',
         key: process.env.RAZORPAY_KEY_ID || 'mock-key-id',
       };
@@ -268,6 +299,12 @@ export class OrdersService implements OnModuleInit {
 
     const redis = this.redisService.getClient();
     await redis.del(`order:reservation:${order.id}`);
+
+    if (order.couponCode) {
+      await this.couponsService
+        .markUsed(order.couponCode)
+        .catch(() => undefined);
+    }
 
     return order;
   }

@@ -1,23 +1,50 @@
-import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Marcellus, Jost } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/context/Providers";
-import SplashScreen from "@/components/splash-screen";
 
-const inter = Inter({
-  variable: "--font-inter",
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
+const marcellus = Marcellus({
+  variable: "--font-marcellus",
   subsets: ["latin"],
+  weight: "400",
+});
+
+const jost = Jost({
+  variable: "--font-jost",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "Arvion - Muslim Community E-Commerce",
-  description: "Halal E-Commerce Platform",
+  title: "AL-RIZVI — Islamic Gifting",
+  description:
+    "Thoughtful Islamic gifts, curated with love. Quran gift sets, prayer essentials, ittar perfumes and personalized hampers — handcrafted and delivered worldwide.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AL-RIZVI",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d3b2c",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -28,10 +55,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${plusJakartaSans.variable} h-full antialiased`}
+      className={`${cormorant.variable} ${marcellus.variable} ${jost.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <SplashScreen />
+      <body className="min-h-full flex flex-col font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

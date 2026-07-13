@@ -59,11 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Cookies.remove('arvion_token');
     Cookies.remove('arvion_refresh');
     setUser(null);
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
-      router.push('/login');
-    } else {
-      router.push('/login/customer');
-    }
+    router.push('/');
   };
 
   const updateUser = (data: Partial<User>) => {

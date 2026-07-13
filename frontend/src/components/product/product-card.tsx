@@ -3,88 +3,90 @@
 import React from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
-import { useRouter } from "next/navigation";
-import { Package, Star } from "lucide-react";
 
-interface ProductProps {
+export interface ProductCardProps {
   id: string;
   title: string;
   price: number;
+  compareAtPrice?: number | null;
+  imageUrl?: string | null;
+  categoryName?: string;
   halalCertified?: boolean;
-  imageUrl?: string;
 }
 
-export default function ProductCard({ id, title, price, halalCertified = false, imageUrl }: ProductProps) {
-  const { items, addToCart } = useCart();
-  const router = useRouter();
-  
-  const cartItem = items.find((item) => item.productId === id);
-  const isInCart = !!cartItem;
+export default function ProductCard({
+  id,
+  title,
+  price,
+  compareAtPrice,
+  imageUrl,
+  categoryName,
+}: ProductCardProps) {
+  const { addToCart } = useCart();
 
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart({ id, title, price, imageUrl });
-  };
+  const hasSale = !!compareAtPrice && compareAtPrice > price;
+  const discount = hasSale
+    ? Math.round((1 - price / Number(compareAtPrice)) * 100)
+    : 0;
 
-  const handleGoToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    router.push('/cart');
+  // Confirmation is the slide-up bag bar in the storefront layout.
+  const handleAdd = () => {
+    addToCart({ id, title, price, imageUrl: imageUrl || undefined });
   };
 
   return (
-    <Link href={`/products/${id}`} className="group bg-white border border-gray-100 rounded-lg p-3 relative flex flex-col justify-between hover:shadow-md hover:border-amber-100 transition-all duration-200 block">
-
-
-      {/* Product Image */}
-      <div className="w-full h-32 bg-gray-50 rounded-md overflow-hidden flex items-center justify-center mb-3">
-        {imageUrl ? (
-          <img src={imageUrl} alt={title} className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
-        ) : (
-          <Package className="h-10 w-10 text-gray-300" strokeWidth={1.5} />
+    <div className="flex flex-col bg-card border border-line rounded overflow-hidden group">
+      <Link
+        href={`/products/${id}`}
+        className="relative aspect-square bg-paper block overflow-hidden"
+      >
+        {hasSale && (
+          <span className="absolute top-3 left-3 z-10 bg-emerald text-sand font-sans text-[11px] tracking-wide px-2.5 py-1 rounded-sm">
+            {discount}% OFF
+          </span>
         )}
-      </div>
-
-      {/* Details */}
-      <div className="flex-1 flex flex-col justify-between">
-        <div>
-          {/* Rating */}
-          <div className="flex items-center space-x-1 mb-1">
-            <Star className="h-3 w-3 text-amber-400" strokeWidth={2} fill="currentColor" />
-            <span className="text-[10px] text-gray-500 font-bold">4.8</span>
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gold-muted font-mono text-[11px] tracking-[0.15em]">
+            {(categoryName || "GIFT").toUpperCase()}
           </div>
-          
-          <h4 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-8 mb-1 leading-snug">
-            {title}
-          </h4>
-        </div>
-
-        {/* Action Row */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
-          <div>
-            <p className="text-[9px] text-gray-400 font-bold uppercase">Price</p>
-            <p className="text-sm font-extrabold text-brand-emerald">₹{price.toFixed(2)}</p>
-          </div>
-
-          {/* Action button */}
-          {!isInCart ? (
-            <button
-              onClick={handleAddToCart}
-              className="bg-white border border-brand-emerald text-brand-emerald font-bold text-xs px-3 py-1.5 rounded-md hover:bg-brand-emerald hover:text-white transition duration-200 active:scale-95 whitespace-nowrap"
-            >
-              ADD
-            </button>
-          ) : (
-            <button
-              onClick={handleGoToCart}
-              className="bg-brand-emerald text-white font-bold text-xs px-3 py-1.5 rounded-md shadow-xs transition active:scale-95 whitespace-nowrap"
-            >
-              GO TO CART
-            </button>
+        )}
+      </Link>
+      <div className="p-4 flex flex-col gap-1.5 flex-1">
+        {categoryName && (
+          <span className="font-sans text-[10px] tracking-[0.14em] uppercase text-muted-2">
+            {categoryName}
+          </span>
+        )}
+        <Link
+          href={`/products/${id}`}
+          className="font-display text-lg sm:text-xl leading-tight text-ink min-h-[44px] hover:text-emerald transition-colors flex-1"
+        >
+          {title}
+        </Link>
+        <div className="flex items-baseline gap-2">
+          <span className="font-sans text-base font-medium text-emerald">
+            ₹{Number(price).toLocaleString("en-IN")}
+          </span>
+          {hasSale && (
+            <span className="font-sans text-[13px] text-faded line-through">
+              ₹{Number(compareAtPrice).toLocaleString("en-IN")}
+            </span>
           )}
         </div>
+        <button
+          onClick={handleAdd}
+          className="mt-2 border border-emerald text-emerald font-sans text-xs tracking-[0.1em] uppercase py-2.5 rounded-sm hover:bg-emerald hover:text-cream transition-colors"
+        >
+          Add to Bag
+        </button>
       </div>
-    </Link>
+    </div>
   );
 }

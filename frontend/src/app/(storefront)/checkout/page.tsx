@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { useSettings } from "@/context/SettingsContext";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import api from "@/lib/api";
@@ -10,22 +11,36 @@ import api from "@/lib/api";
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { items, total, checkout, clearCart } = useCart();
+  const settings = useSettings();
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    address: "",
-  });
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({ name: "", address: "", note: "" });
+  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
 
   useEffect(() => {
     if (user) {
-      setFormData({
+      setFormData((prev) => ({
+        ...prev,
         name: user.name === "Customer" ? "" : user.name || "",
-        address: user.address || "", // Will exist if we added it to the model and returned it
-      });
+        address: (user as any).address || "",
+      }));
     }
   }, [user]);
+
+  // Validate the coupon applied in the cart
+  useEffect(() => {
+    const saved = localStorage.getItem("arvion_coupon");
+    if (!saved || total === 0) return;
+    api
+      .post("/coupons/validate", { code: saved, subtotal: total })
+      .then((res) => setCoupon({ code: res.data.code, discount: res.data.discount }))
+      .catch(() => {
+        setCoupon(null);
+        localStorage.removeItem("arvion_coupon");
+      });
+  }, [total]);
 
   // If unauthenticated or no items, bounce back
   useEffect(() => {
@@ -37,29 +52,38 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, items, router]);
 
+  const discount = coupon?.discount || 0;
+  const freeThreshold = Number(settings.freeShippingThreshold) || 0;
+  const shippingFee = Number(settings.shippingFee) || 0;
+  const shipping = total - discount >= freeThreshold ? 0 : shippingFee;
+  const grandTotal = Math.max(0, total - discount + shipping);
+
   const handlePayNow = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.name || !formData.address) {
-      alert("Please provide your name and delivery address.");
+      setError("Please provide your name and delivery address.");
       return;
     }
 
     try {
       setLoading(true);
-      
-      // We pass the collected details to the checkout API
-      // We need to modify our context/API to accept delivery details
+      setError("");
+
+      const shippingAddress = formData.note
+        ? `${formData.address}\n\nGift note: ${formData.note}`
+        : formData.address;
+
       const checkoutData = await checkout({
         customerName: formData.name,
-        shippingAddress: formData.address,
+        shippingAddress,
+        couponCode: coupon?.code,
       });
 
       const options = {
         key: checkoutData.key,
         amount: checkoutData.amount * 100,
         currency: checkoutData.currency,
-        name: "Arvion",
+        name: settings.storeName,
         description: "Order Payment",
         order_id: checkoutData.razorpayOrderId,
         handler: async function (response: any) {
@@ -70,6 +94,7 @@ export default function CheckoutPage() {
               razorpaySignature: response.razorpay_signature,
             });
             clearCart();
+            localStorage.removeItem("arvion_coupon");
             window.location.href = `/order-success?order=${checkoutData.orderId}`;
           } catch (err: any) {
             alert(
@@ -81,21 +106,20 @@ export default function CheckoutPage() {
         },
         prefill: {
           name: formData.name,
-          contact: user?.phone || "",
+          contact: (user as any)?.phone || "",
         },
         theme: {
-          color: "#065f46",
+          color: "#0d3b2c",
         },
       };
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on("payment.failed", function (response: any) {
-        alert(`Payment failed: ${response.error.description}`);
+        setError(`Payment failed: ${response.error.description}`);
       });
       rzp.open();
-
     } catch (err: any) {
-      alert("Checkout failed: " + (err.response?.data?.message || err.message));
+      setError("Checkout failed: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -103,81 +127,135 @@ export default function CheckoutPage() {
 
   if (!user || items.length === 0) return null;
 
+  const inputClass =
+    "w-full font-sans text-sm px-4 py-3 border border-line bg-card rounded-sm text-ink placeholder:text-muted-2 focus:outline-none focus:border-gold transition";
+
   return (
-    <div className="flex-1 w-full bg-surface pb-safe pt-md">
+    <div className="mx-auto max-w-5xl w-full px-4 md:px-7 py-8 md:py-10 flex-1">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
-      
-      <div className="max-w-3xl mx-auto px-container-margin">
-        <h1 className="text-display-sm font-extrabold text-on-surface mb-6">Checkout</h1>
-        
-        <form onSubmit={handlePayNow} className="space-y-6">
-          <div className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant space-y-4">
-            <h2 className="text-title-lg font-bold text-on-surface flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">local_shipping</span>
+
+      <h1 className="font-display font-medium text-4xl md:text-[46px] text-ink mb-7">
+        Checkout
+      </h1>
+
+      <form
+        onSubmit={handlePayNow}
+        className="grid grid-cols-1 lg:grid-cols-[1fr_330px] gap-8 items-start"
+      >
+        {/* Delivery details */}
+        <div className="flex flex-col gap-6">
+          <div className="border border-line rounded bg-card p-5 md:p-6">
+            <h2 className="font-display font-medium text-2xl text-ink mb-5">
               Delivery Details
             </h2>
-            
-            <div>
-              <label className="block text-label-lg font-bold text-on-surface mb-1">Full Name</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. John Doe"
-                className="w-full bg-surface rounded-xl px-4 py-3 text-body-lg text-on-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-label-lg font-bold text-on-surface mb-1">Delivery Address</label>
-              <textarea
-                required
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Full delivery address, floor, building..."
-                rows={3}
-                className="w-full bg-surface rounded-xl px-4 py-3 text-body-lg text-on-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-              />
-            </div>
-          </div>
-          
-          <div className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant space-y-4">
-            <h2 className="text-title-lg font-bold text-on-surface flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">receipt_long</span>
-              Order Summary
-            </h2>
-            
-            <div className="space-y-2 text-body-md text-on-surface">
-              <div className="flex justify-between">
-                <span>Items ({items.length})</span>
-                <span className="font-bold">₹{total.toFixed(2)}</span>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block font-sans text-xs tracking-[0.1em] uppercase text-emerald mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Your full name"
+                  className={inputClass}
+                />
               </div>
-              <div className="flex justify-between">
-                <span>Delivery</span>
-                <span className="font-bold text-primary">Free</span>
+              <div>
+                <label className="block font-sans text-xs tracking-[0.1em] uppercase text-emerald mb-1.5">
+                  Delivery Address
+                </label>
+                <textarea
+                  required
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="House / flat, street, city, state, PIN code"
+                  rows={3}
+                  className={`${inputClass} resize-y`}
+                />
               </div>
-              <div className="flex justify-between">
-                <span>Tax (GST)</span>
-                <span className="font-bold">₹{(total * 0.05).toFixed(2)}</span>
-              </div>
-              <div className="border-t border-outline-variant pt-2 mt-2 flex justify-between items-end">
-                <span className="font-bold">Total Amount</span>
-                <span className="text-title-xl font-extrabold text-primary">₹{(total * 1.05).toFixed(2)}</span>
+              <div>
+                <label className="block font-sans text-xs tracking-[0.1em] uppercase text-emerald mb-1.5">
+                  ✦ Gift note (optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.note}
+                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                  placeholder="A short message or name to include"
+                  className={inputClass}
+                />
               </div>
             </div>
           </div>
-          
+
+          {/* Items recap */}
+          <div className="border border-line rounded bg-card overflow-hidden">
+            {items.map((item) => (
+              <div
+                key={item.productId}
+                className="flex items-center gap-4 px-5 py-3.5 border-b border-line-soft last:border-b-0"
+              >
+                <div className="w-12 h-12 rounded-sm overflow-hidden bg-paper border border-line-soft flex-none">
+                  {item.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[repeating-linear-gradient(135deg,#efe7d4_0_8px,#f5eede_8px_16px)]" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-base text-ink truncate">{item.title}</p>
+                  <p className="font-sans text-xs text-muted">Qty {item.quantity}</p>
+                </div>
+                <span className="font-sans text-sm font-medium text-emerald">
+                  ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Summary + pay */}
+        <div className="border border-line rounded bg-paper p-6 lg:sticky lg:top-28">
+          <h3 className="font-display font-medium text-2xl text-ink mb-5">
+            Order Summary
+          </h3>
+          <div className="flex justify-between font-sans text-sm text-ink-body mb-3">
+            <span>Subtotal</span>
+            <span>₹{total.toLocaleString("en-IN")}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between font-sans text-sm text-emerald mb-3">
+              <span>Discount ({coupon?.code})</span>
+              <span>−₹{discount.toLocaleString("en-IN")}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-sans text-sm text-ink-body mb-3">
+            <span>Shipping</span>
+            <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
+          </div>
+          <div className="border-t border-line my-4" />
+          <div className="flex justify-between font-display text-2xl text-emerald mb-5">
+            <span>Total</span>
+            <span>₹{grandTotal.toLocaleString("en-IN")}</span>
+          </div>
+          {error && (
+            <p className="font-sans text-xs text-danger mb-4">{error}</p>
+          )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold text-title-md shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+            className="w-full bg-gold text-emerald font-sans text-[13px] tracking-[0.12em] uppercase py-3.5 rounded-sm hover:bg-gold-light transition disabled:opacity-50"
           >
-            {loading ? "Processing..." : "Pay Now"}
-            <span className="material-symbols-outlined">arrow_forward</span>
+            {loading ? "Preparing payment…" : "Pay Securely"}
           </button>
-        </form>
-      </div>
+          <p className="font-sans text-[11px] text-muted text-center mt-3">
+            Secured by Razorpay · UPI, cards &amp; netbanking
+          </p>
+        </div>
+      </form>
     </div>
   );
 }

@@ -7,10 +7,27 @@ export class CatalogService {
   constructor(private prisma: PrismaService) {}
 
   async search(dto: SearchProductsDto) {
-    const { search, categorySlug, page = 1, limit = 10, minPrice, maxPrice, halalOnly } = dto;
+    const {
+      search,
+      categorySlug,
+      page = 1,
+      limit = 10,
+      minPrice,
+      maxPrice,
+      halalOnly,
+      featuredOnly,
+      onSaleOnly,
+      includeInactive,
+      sort,
+    } = dto;
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    // Storefront sees active products only; admin passes includeInactive=true
+    if (!includeInactive) {
+      where.isActive = true;
+    }
 
     // Filtering by Price Range
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -24,24 +41,38 @@ export class CatalogService {
       where.halalCertified = true;
     }
 
+    if (featuredOnly) {
+      where.isFeatured = true;
+    }
+
+    if (onSaleOnly) {
+      where.compareAtPrice = { not: null };
+    }
+
     // Category Filter
     if (categorySlug) {
       where.category = { slug: categorySlug };
     }
 
     // Text Search Logic (combines words matching both Title and Description)
+    // Note: SQLite `contains` is case-insensitive for ASCII by default.
     if (search) {
       const searchTerms = search.split(/\s+/).filter(Boolean);
       if (searchTerms.length > 0) {
         where.AND = searchTerms.map((term) => ({
           OR: [
-            { title: { contains: term, mode: 'insensitive' } },
-            { description: { contains: term, mode: 'insensitive' } },
-            { sku: { contains: term, mode: 'insensitive' } },
+            { title: { contains: term } },
+            { description: { contains: term } },
+            { sku: { contains: term } },
           ],
         }));
       }
     }
+
+    let orderBy: any = { createdAt: 'desc' };
+    if (sort === 'price_low') orderBy = { price: 'asc' };
+    else if (sort === 'price_high') orderBy = { price: 'desc' };
+    else if (sort === 'featured') orderBy = [{ isFeatured: 'desc' }, { createdAt: 'desc' }];
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
@@ -49,7 +80,7 @@ export class CatalogService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: { inventory: true, category: true },
       }),
     ]);
@@ -90,9 +121,13 @@ export class CatalogService {
           title: dto.title,
           description: dto.description,
           price: dto.price,
+          compareAtPrice: dto.compareAtPrice || null,
           sku: dto.sku,
           halalCertified: dto.halalCertified || false,
+          isFeatured: dto.isFeatured || false,
+          isActive: dto.isActive !== false,
           imageUrl: dto.imageUrl,
+          images: dto.images,
           categoryId: dto.categoryId,
         },
       });
@@ -123,9 +158,13 @@ export class CatalogService {
       }
     }
 
+    const data: any = { ...dto };
+    // compareAtPrice of 0 means "not on sale" — clear it
+    if (data.compareAtPrice === 0) data.compareAtPrice = null;
+
     return this.prisma.product.update({
       where: { id },
-      data: dto,
+      data,
       include: { inventory: true, category: true },
     });
   }

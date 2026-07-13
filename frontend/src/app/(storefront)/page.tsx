@@ -3,23 +3,100 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
+import ProductCard from "@/components/product/product-card";
+import { useSettings } from "@/context/SettingsContext";
+
+interface Banner {
+  id: string;
+  title: string;
+  subtitle?: string;
+  imageUrl?: string;
+  ctaLabel?: string;
+  link?: string;
+}
+
+function SectionHeading({
+  eyebrow,
+  title,
+  viewAllHref,
+}: {
+  eyebrow: string;
+  title: string;
+  viewAllHref?: string;
+}) {
+  return (
+    <div className="flex items-end justify-between mb-7">
+      <div>
+        <span className="font-sans text-[11px] md:text-xs tracking-[0.3em] uppercase text-gold-muted">
+          {eyebrow}
+        </span>
+        <h2 className="font-display font-medium text-3xl md:text-4xl text-ink mt-2">
+          {title}
+        </h2>
+      </div>
+      {viewAllHref && (
+        <Link
+          href={viewAllHref}
+          className="font-sans text-xs md:text-[13px] tracking-[0.08em] uppercase text-emerald border-b border-gold pb-1 whitespace-nowrap"
+        >
+          View all
+        </Link>
+      )}
+    </div>
+  );
+}
+
+const OCCASIONS = [
+  "Wedding",
+  "Nikah",
+  "Hajj & Umrah",
+  "Aqiqah",
+  "Ramadan & Eid",
+  "Anniversary",
+  "Housewarming",
+  "Bismillah",
+];
+
+const REVIEWS = [
+  {
+    quote:
+      "The Quran set was even more beautiful in person. Wrapped like a dream — my sister cried when she opened it.",
+    name: "Ayesha R.",
+  },
+  {
+    quote:
+      "Ordered a couple janamaz for a nikah. Premium quality, fast delivery and the personalisation was perfect.",
+    name: "Bilal K.",
+  },
+  {
+    quote:
+      "My go-to for every Eid. Thoughtful, elegant and always on time. Truly sharing the barakah.",
+    name: "Fatima S.",
+  },
+];
 
 export default function StorefrontHomePage() {
+  const settings = useSettings();
   const [products, setProducts] = useState<any[]>([]);
+  const [featured, setFeatured] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [prodRes, catRes] = await Promise.all([
-          api.get("/catalog?limit=100"),
+        const [prodRes, featRes, catRes, bannerRes] = await Promise.all([
+          api.get("/catalog?limit=8&sort=newest"),
+          api.get("/catalog?limit=4&featuredOnly=true"),
           api.get("/category"),
+          api.get("/banners/active"),
         ]);
         setProducts(prodRes.data.data || []);
+        setFeatured(featRes.data.data || []);
         setCategories(catRes.data || []);
+        setBanners(bannerRes.data || []);
       } catch (err) {
         console.error("Failed to load storefront homepage data", err);
       } finally {
@@ -29,161 +106,274 @@ export default function StorefrontHomePage() {
     loadData();
   }, []);
 
-  const trendingProducts = products.slice(0, 6);
-
-  const handleAdd = (id: string) => {
-    setQuantities((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
-  };
-
-  const handleRemove = (id: string) => {
-    setQuantities((prev) => {
-      const current = prev[id] || 0;
-      if (current <= 1) {
-        const newQ = { ...prev };
-        delete newQ[id];
-        return newQ;
-      }
-      return { ...prev, [id]: current - 1 };
-    });
-  };
+  const trust = [
+    { title: "Handcrafted", sub: "Made by hand with love" },
+    {
+      title: "Free Shipping",
+      sub: `On orders over ₹${settings.freeShippingThreshold}`,
+    },
+    { title: "Worldwide", sub: "Delivered across the globe" },
+    { title: "5,000+ Gifts", sub: "Loved by families" },
+  ];
 
   if (loading) {
     return (
-      <div className="flex-1 w-full flex items-center justify-center min-h-[50vh]">
-        <p className="text-outline font-medium animate-pulse">Loading...</p>
+      <div className="flex-1 w-full flex items-center justify-center min-h-[60vh]">
+        <p className="font-display italic text-xl text-muted animate-pulse">
+          Preparing something beautiful…
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col w-full bg-surface pb-4 max-w-7xl mx-auto">
-      {/* Search Bar - Sticky */}
-      <div className="sticky top-[60px] md:top-[70px] z-40 bg-surface px-container-margin py-xs md:py-sm">
-        <div className="relative max-w-3xl mx-auto">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
-          <input 
-            type="text" 
-            placeholder="Search for Attar, Dates, Prayer Mats..." 
-            className="w-full bg-surface-container rounded-full pl-10 pr-4 py-3 text-body-md text-on-surface placeholder:text-outline border-none focus:ring-1 focus:ring-primary outline-none transition-shadow"
-          />
-        </div>
-      </div>
-
-      {/* Prayer Widget */}
-      <div className="px-container-margin mt-md md:mt-lg">
-        <div className="bg-tertiary-fixed rounded-2xl p-md md:p-lg md:px-xl relative overflow-hidden flex items-center justify-between shadow-sm">
-          <span className="material-symbols-outlined absolute -right-4 -bottom-4 md:right-10 md:top-1/2 md:-translate-y-1/2 text-[120px] md:text-[180px] text-tertiary/10 rotate-[-15deg]">mosque</span>
-          <div className="relative z-10 flex flex-col">
-            <span className="text-badge-micro md:text-sm font-label-bold text-on-tertiary-fixed-variant uppercase tracking-wider">Next Prayer</span>
-            <div className="flex items-baseline gap-2 mt-xs md:mt-1">
-              <span className="text-headline-md md:text-4xl font-extrabold text-on-tertiary-container">Dhuhr</span>
-              <span className="text-title-md md:text-xl font-bold text-on-tertiary-container">12:45 PM</span>
-            </div>
-            <span className="text-body-sm md:text-base text-on-tertiary-fixed mt-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px] md:text-[18px]">schedule</span>
-              Countdown: 1h 22m remains
+    <div className="flex flex-col w-full">
+      {/* HERO */}
+      <section className="bg-emerald text-cream">
+        <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-2 items-stretch">
+          <div className="px-4 md:pl-7 md:pr-14 py-14 md:py-20 flex flex-col justify-center order-2 md:order-1">
+            <span className="font-sans text-[11px] md:text-xs tracking-[0.34em] uppercase text-gold">
+              {settings.heroBadge}
             </span>
-          </div>
-          <div className="relative z-10 flex flex-col items-end gap-xs md:gap-2 text-right">
-            <span className="text-body-sm md:text-base text-on-tertiary-fixed font-medium">Fajr • 05:12 AM</span>
-            <span className="text-body-sm md:text-base text-on-tertiary-fixed font-medium">Isha • 07:45 PM</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Hero Banners */}
-      <div className="mt-lg md:mt-xl">
-        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-container-margin gap-md pb-xs">
-          {/* Banner 1 */}
-          <div className="min-w-[85%] sm:min-w-[400px] md:min-w-[600px] snap-center relative rounded-2xl overflow-hidden h-[160px] md:h-[280px] bg-surface-container flex-shrink-0 shadow-sm">
-            <img src="https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=1200&q=80" alt="Attar Collection" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-on-primary-container/95 via-on-primary-container/70 to-transparent"></div>
-            <div className="relative z-10 p-md md:p-xl flex flex-col justify-center h-full max-w-[70%] md:max-w-[50%]">
-              <span className="text-badge-micro md:text-sm font-label-bold text-primary-fixed uppercase tracking-wider mb-1 md:mb-2">LIMITED TIME</span>
-              <h3 className="text-title-md md:text-3xl font-bold text-on-primary mb-1 md:mb-3">Pure Oud Attars</h3>
-              <p className="text-body-sm md:text-base text-primary-fixed-dim line-clamp-2 md:line-clamp-none">Up to 20% off on select premium collections</p>
+            <h1 className="font-display font-medium text-4xl md:text-6xl leading-[1.06] mt-5 text-cream">
+              {settings.heroTitle}
+            </h1>
+            <p className="font-display italic text-lg md:text-[21px] leading-relaxed text-sand-dim mt-5 max-w-md">
+              {settings.heroQuote}
+            </p>
+            <div className="flex flex-wrap gap-3.5 mt-8">
+              <Link
+                href="/category/all"
+                className="bg-gold text-emerald font-sans text-[13px] tracking-[0.1em] uppercase px-8 py-3.5 rounded-sm hover:bg-gold-light transition text-center"
+              >
+                {settings.heroCtaLabel}
+              </Link>
+              <Link
+                href="/about"
+                className="border border-emerald-soft text-cream font-sans text-[13px] tracking-[0.1em] uppercase px-8 py-3.5 rounded-sm hover:border-gold hover:text-gold transition text-center"
+              >
+                Our Story
+              </Link>
             </div>
           </div>
-          {/* Banner 2 */}
-          <div className="min-w-[85%] sm:min-w-[400px] md:min-w-[600px] snap-center relative rounded-2xl overflow-hidden h-[160px] md:h-[280px] bg-surface-container flex-shrink-0 shadow-sm">
-            <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80" alt="Dates" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-on-secondary-fixed/95 via-on-secondary-fixed/70 to-transparent"></div>
-            <div className="relative z-10 p-md md:p-xl flex flex-col justify-center h-full max-w-[70%] md:max-w-[50%]">
-              <span className="text-badge-micro md:text-sm font-label-bold text-secondary-fixed uppercase tracking-wider mb-1 md:mb-2">NEW ARRIVALS</span>
-              <h3 className="text-title-md md:text-3xl font-bold text-on-primary mb-1 md:mb-3">Ajwa Dates</h3>
-              <p className="text-body-sm md:text-base text-secondary-fixed-dim line-clamp-2 md:line-clamp-none">Freshly imported from Madinah</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid Categories */}
-      <div className="px-container-margin mt-lg md:mt-xl">
-        <div className="flex justify-between items-end mb-md md:mb-lg">
-          <h2 className="text-title-md md:text-2xl font-bold text-on-surface">Shop by Category</h2>
-          <Link href="/category/all" className="text-body-sm md:text-base font-medium text-primary hover:underline">View All</Link>
-        </div>
-        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-x-sm gap-y-md md:gap-lg">
-          {categories.slice(0, 8).map((cat) => (
-            <Link href={`/category/${cat.slug}`} key={cat.id} className="flex flex-col items-center gap-2 md:gap-3 group">
-              <div className="w-full aspect-square rounded-2xl md:rounded-[2rem] bg-surface-container-low flex items-center justify-center overflow-hidden border border-outline-variant/30 group-hover:border-primary/50 group-hover:shadow-md transition-all duration-300">
-                {cat.imageUrl ? (
-                  <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                ) : (
-                  <span className="material-symbols-outlined text-outline text-[32px] md:text-[48px]">category</span>
-                )}
+          <div className="relative min-h-[240px] md:min-h-[520px] border-b md:border-b-0 md:border-l border-[#22513c] order-1 md:order-2">
+            {settings.heroImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={settings.heroImageUrl}
+                alt={settings.heroTitle}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,#12442f_0_16px,#164a34_16px_32px)] flex items-center justify-center">
+                <span className="font-brand tracking-[0.3em] text-[#6f9581] text-sm">
+                  {settings.storeName}
+                </span>
               </div>
-              <span className="text-badge-micro md:text-sm font-label-bold text-on-surface text-center line-clamp-2 leading-tight md:leading-normal">{cat.name}</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* TRUST STRIP */}
+      <section className="bg-paper border-b border-line">
+        <div className="mx-auto max-w-7xl px-4 md:px-7 py-6 grid grid-cols-2 md:grid-cols-4 gap-5 text-center">
+          {trust.map((item) => (
+            <div key={item.title} className="flex flex-col gap-1">
+              <span className="font-display text-lg md:text-[19px] text-emerald">
+                {item.title}
+              </span>
+              <span className="font-sans text-[11px] md:text-xs text-muted">
+                {item.sub}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PROMO BANNERS (admin-managed) */}
+      {banners.length > 0 && (
+        <section className="mt-10 md:mt-14">
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 md:px-7 gap-4 pb-2 mx-auto max-w-7xl w-full">
+            {banners.map((banner) => (
+              <Link
+                key={banner.id}
+                href={banner.link || "/category/all"}
+                className="min-w-[88%] sm:min-w-[440px] md:min-w-[600px] snap-center relative rounded overflow-hidden h-[170px] md:h-[280px] flex-shrink-0 border border-line bg-emerald"
+              >
+                {banner.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={banner.imageUrl}
+                    alt={banner.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-deep/95 via-emerald-deep/60 to-transparent" />
+                <div className="relative z-10 p-5 md:p-10 flex flex-col justify-center h-full max-w-[75%] md:max-w-[55%]">
+                  {banner.subtitle && (
+                    <span className="font-sans text-[10px] md:text-xs tracking-[0.3em] uppercase text-gold mb-1.5">
+                      {banner.subtitle}
+                    </span>
+                  )}
+                  <h3 className="font-display font-medium text-2xl md:text-4xl text-cream leading-tight">
+                    {banner.title}
+                  </h3>
+                  {banner.ctaLabel && (
+                    <span className="mt-3 md:mt-5 inline-block w-fit bg-gold text-emerald font-sans text-[11px] md:text-xs tracking-[0.1em] uppercase px-5 py-2 rounded-sm">
+                      {banner.ctaLabel}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* OCCASIONS */}
+      <section className="mx-auto max-w-7xl w-full px-4 md:px-7 pt-14 md:pt-16 text-center">
+        <span className="font-sans text-[11px] md:text-xs tracking-[0.3em] uppercase text-gold-muted">
+          Find the perfect gift
+        </span>
+        <h2 className="font-display font-medium text-3xl md:text-[40px] text-ink mt-3 mb-7">
+          Gifts for Every Occasion
+        </h2>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {OCCASIONS.map((occasion) => (
+            <Link
+              key={occasion}
+              href={`/category/all?q=${encodeURIComponent(occasion)}`}
+              className="bg-card border border-line font-sans text-[12px] md:text-[13px] tracking-[0.05em] text-ink-soft px-5 py-2.5 rounded-full hover:border-gold hover:text-emerald hover:bg-paper transition"
+            >
+              {occasion}
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Trending Carousel */}
-      <div className="mt-lg md:mt-xl">
-        <div className="px-container-margin flex justify-between items-end mb-md md:mb-lg">
-          <div>
-            <h2 className="text-title-md md:text-2xl font-bold text-on-surface">Trending this Week</h2>
-            <p className="text-body-sm md:text-base text-outline">Most loved by the community</p>
-          </div>
-          <Link href="/category/all" className="text-body-sm md:text-base font-medium text-primary hover:underline">View All</Link>
-        </div>
-        <div className="flex overflow-x-auto no-scrollbar px-container-margin gap-sm md:gap-lg pb-md">
-          {trendingProducts.map((prod) => (
-            <div key={prod.id} className="min-w-[160px] md:min-w-[240px] w-40 md:w-60 flex flex-col bg-surface rounded-2xl border border-outline-variant overflow-hidden flex-shrink-0 group hover:shadow-lg transition-shadow">
-              <Link href={`/products/${prod.id}`} className="relative aspect-square bg-surface-container-lowest block">
-                {prod.halalCertified && (
-                  <span className="absolute top-2 left-2 md:top-3 md:left-3 bg-primary text-on-primary text-badge-micro md:text-xs font-label-bold px-1.5 md:px-2 py-0.5 md:py-1 rounded-md shadow-sm z-10">HALAL</span>
+      {/* CATEGORY TILES */}
+      {categories.length > 0 && (
+        <section className="mx-auto max-w-7xl w-full px-4 md:px-7 py-12 md:py-14">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
+            {categories.slice(0, 6).map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/category/${cat.slug}`}
+                className="relative border border-line rounded overflow-hidden h-[160px] md:h-[250px] flex items-end group hover:border-gold transition bg-paper"
+              >
+                {cat.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={cat.imageUrl}
+                    alt={cat.name}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,#efe7d4_0_16px,#f5eede_16px_32px)]" />
                 )}
-                <img src={prod.imageUrl || "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=400&q=80"} alt={prod.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              </Link>
-              <div className="p-sm md:p-md flex flex-col flex-1">
-                <Link href={`/products/${prod.id}`} className="text-body-md md:text-lg font-bold text-on-surface line-clamp-2 leading-tight mb-1 md:mb-3 flex-1 hover:text-primary transition-colors">
-                  {prod.title}
-                </Link>
-                <div className="flex justify-between items-end mt-2 md:mt-4">
-                  <span className="text-title-md md:text-xl font-extrabold text-on-surface">₹{parseFloat(prod.price)}</span>
-                  {quantities[prod.id] ? (
-                    <div className="flex items-center bg-primary rounded-lg md:rounded-xl shadow-sm border border-primary overflow-hidden h-8 md:h-10">
-                      <button onClick={() => handleRemove(prod.id)} className="w-7 md:w-10 h-full flex items-center justify-center text-on-primary active:bg-primary-container transition-colors hover:bg-primary/90">
-                        <span className="material-symbols-outlined text-[18px] md:text-[20px]">remove</span>
-                      </button>
-                      <span className="w-6 md:w-8 text-center text-body-sm md:text-base font-bold text-on-primary">{quantities[prod.id]}</span>
-                      <button onClick={() => handleAdd(prod.id)} className="w-7 md:w-10 h-full flex items-center justify-center text-on-primary active:bg-primary-container transition-colors hover:bg-primary/90">
-                        <span className="material-symbols-outlined text-[18px] md:text-[20px]">add</span>
-                      </button>
+                <div className="relative w-full bg-gradient-to-t from-emerald/90 to-transparent px-4 md:px-5 py-4 md:py-5">
+                  <div className="font-display text-xl md:text-[26px] text-cream leading-none">
+                    {cat.name}
+                  </div>
+                  {cat.description && (
+                    <div className="font-sans text-[11px] md:text-xs text-sand-dim mt-1.5 line-clamp-1">
+                      {cat.description}
                     </div>
-                  ) : (
-                    <button onClick={() => handleAdd(prod.id)} className="bg-surface border border-outline text-primary text-label-bold md:text-sm px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl font-bold hover:bg-primary hover:text-on-primary hover:border-primary active:bg-primary-container transition-all h-8 md:h-10 flex items-center justify-center">
-                      ADD
-                    </button>
                   )}
                 </div>
-              </div>
-            </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* NEW ARRIVALS */}
+      <section className="mx-auto max-w-7xl w-full px-4 md:px-7 pb-12 md:pb-14">
+        <SectionHeading eyebrow="Just In" title="New Arrivals" viewAllHref="/category/all" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+          {products.map((prod) => (
+            <ProductCard
+              key={prod.id}
+              id={prod.id}
+              title={prod.title}
+              price={parseFloat(prod.price)}
+              compareAtPrice={prod.compareAtPrice ? parseFloat(prod.compareAtPrice) : null}
+              imageUrl={prod.imageUrl}
+              categoryName={prod.category?.name}
+            />
           ))}
+          {products.length === 0 && (
+            <p className="col-span-full text-center py-16 font-sans text-sm text-muted">
+              New gifts arriving soon, insha&apos;Allah.
+            </p>
+          )}
         </div>
-      </div>
+      </section>
+
+      {/* BRAND STORY BAND */}
+      <section className="bg-emerald text-cream">
+        <div className="mx-auto max-w-3xl px-4 md:px-7 py-16 md:py-20 text-center">
+          <span className="font-sans text-[11px] md:text-xs tracking-[0.34em] uppercase text-gold">
+            Because you deserve the best
+          </span>
+          <p className="font-display text-xl md:text-[29px] leading-relaxed mt-6 text-[#ece6d6]">
+            At {settings.storeName}, {settings.brandStory}
+          </p>
+        </div>
+      </section>
+
+      {/* FEATURED */}
+      {featured.length > 0 && (
+        <section className="mx-auto max-w-7xl w-full px-4 md:px-7 py-14 md:py-16">
+          <SectionHeading
+            eyebrow="Made just for them"
+            title="Handpicked Favourites"
+            viewAllHref="/category/all"
+          />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            {featured.map((prod) => (
+              <ProductCard
+                key={prod.id}
+                id={prod.id}
+                title={prod.title}
+                price={parseFloat(prod.price)}
+                compareAtPrice={prod.compareAtPrice ? parseFloat(prod.compareAtPrice) : null}
+                imageUrl={prod.imageUrl}
+                categoryName={prod.category?.name}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* TESTIMONIALS */}
+      <section className="bg-paper border-t border-line">
+        <div className="mx-auto max-w-7xl px-4 md:px-7 py-14 md:py-16 text-center">
+          <span className="font-sans text-[11px] md:text-xs tracking-[0.3em] uppercase text-gold-muted">
+            Loved by 5,000+ families
+          </span>
+          <h2 className="font-display font-medium text-3xl md:text-[38px] text-ink mt-3 mb-8">
+            Kind Words
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
+            {REVIEWS.map((review) => (
+              <div
+                key={review.name}
+                className="bg-card border border-line rounded p-6"
+              >
+                <div className="text-gold text-[15px] tracking-[2px]">★★★★★</div>
+                <p className="font-display italic text-lg md:text-[19px] leading-relaxed text-ink-soft my-4">
+                  “{review.quote}”
+                </p>
+                <span className="font-sans text-[13px] tracking-[0.05em] text-muted">
+                  — {review.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
