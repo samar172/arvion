@@ -23,10 +23,17 @@ const jost = Jost({
 });
 
 export const metadata: Metadata = {
-  title: "AL-RIZVI — Islamic Gifting",
+  title: { default: "AL-RIZVI — Islamic Gifting", template: "%s — AL-RIZVI" },
   description:
     "Thoughtful Islamic gifts, curated with love. Quran gift sets, prayer essentials, ittar perfumes and personalized hampers — handcrafted and delivered worldwide.",
   manifest: "/manifest.json",
+  openGraph: {
+    title: "AL-RIZVI — Islamic Gifting",
+    description:
+      "Quran gift sets, prayer essentials, ittar perfumes and personalized hampers — handcrafted and delivered worldwide.",
+    images: ["/icon-512.png"],
+    type: "website",
+  },
   icons: {
     icon: [
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },

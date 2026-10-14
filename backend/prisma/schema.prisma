@@ -21,23 +21,25 @@ model User {
 }
 
 model Product {
-  id             String      @id @default(uuid())
+  id             String          @id @default(uuid())
   title          String
   description    String
   price          Decimal
   compareAtPrice Decimal?
-  sku            String      @unique
-  halalCertified Boolean     @default(false)
-  isFeatured     Boolean     @default(false)
-  isActive       Boolean     @default(true)
+  sku            String          @unique
+  halalCertified Boolean         @default(false)
+  isFeatured     Boolean         @default(false)
+  isActive       Boolean         @default(true)
   imageUrl       String?
   images         String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   categoryId     String?
+  costPrice      Decimal?
   inventory      Inventory?
   orderItems     OrderItem[]
-  category       Category?   @relation(fields: [categoryId], references: [id])
+  movements      StockMovement[]
+  category       Category?       @relation(fields: [categoryId], references: [id])
 }
 
 model Banner {
@@ -86,29 +88,38 @@ model Category {
 }
 
 model Inventory {
-  id        String   @id @default(uuid())
-  productId String   @unique
-  stock     Int      @default(0)
-  reserved  Int      @default(0)
-  updatedAt DateTime @updatedAt
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid())
+  productId         String   @unique
+  stock             Int      @default(0)
+  reserved          Int      @default(0)
+  /// Alert once available stock falls to this level.
+  lowStockThreshold Int      @default(5)
+  updatedAt         DateTime @updatedAt
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  userId          String
-  status          OrderStatus @default(PENDING)
+  id              String       @id @default(uuid())
+  /// Null for walk-in shop sales with no customer account.
+  userId          String?
+  channel         SalesChannel @default(ONLINE)
+  /// RAZORPAY for online; CASH / UPI / CARD / OTHER for shop sales.
+  paymentMethod   String?
+  note            String?
+  /// Set when a cancelled order's stock has been put back, so it never happens twice.
+  restockedAt     DateTime?
+  status          OrderStatus  @default(PENDING)
   totalAmount     Decimal
   subtotalAmount  Decimal?
   discountAmount  Decimal?
   couponCode      String?
-  razorpayOrderId String?     @unique
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  razorpayOrderId String?      @unique
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   customerName    String?
   customerPhone   String?
   shippingAddress String?
-  user            User        @relation(fields: [userId], references: [id])
+  user            User?        @relation(fields: [userId], references: [id])
   items           OrderItem[]
   payments        Payment[]
 }
@@ -156,4 +167,38 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+enum SalesChannel {
+  ONLINE
+  OFFLINE
+}
+
+enum StockMovementType {
+  RESTOCK
+  ADJUSTMENT
+  SALE_ONLINE
+  SALE_OFFLINE
+  RETURN
+  DAMAGE
+  IMPORT
+}
+
+/// Append-only ledger: every change to Inventory.stock writes one row.
+model StockMovement {
+  id           String            @id @default(uuid())
+  productId    String
+  type         StockMovementType
+  /// Signed change applied to stock (+ in, − out).
+  quantity     Int
+  /// Stock on hand right after this movement.
+  balanceAfter Int
+  orderId      String?
+  note         String?
+  createdById  String?
+  createdAt    DateTime          @default(now())
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([createdAt])
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api, { apiError } from "@/lib/api";
-import { inr, dateTime, statusVariant } from "@/lib/format";
+import { inr, dateTime, dateShort, statusVariant, CHANNEL_LABEL, PAYMENT_LABEL } from "@/lib/format";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Store, Globe, RotateCcw } from "lucide-react";
 
 export function OrderSheet({
   orderId,
@@ -40,8 +41,11 @@ export function OrderSheet({
   const subtotal = order?.subtotalAmount ? Number(order.subtotalAmount) : null;
   const discount = order?.discountAmount ? Number(order.discountAmount) : 0;
   const total = order ? Number(order.totalAmount) : 0;
+  // Shop sales have no delivery, so no shipping line.
   const shipping =
-    subtotal !== null ? Math.max(0, total - (subtotal - discount)) : null;
+    subtotal !== null && order?.channel !== "OFFLINE"
+      ? Math.max(0, total - (subtotal - discount))
+      : null;
 
   return (
     <Sheet open={!!orderId} onOpenChange={onOpenChange}>
@@ -60,12 +64,44 @@ export function OrderSheet({
         ) : (
           <div className="mt-5 flex flex-col gap-5">
             <div className="flex items-center justify-between">
-              <Badge variant={statusVariant(order.status)}>
-                {order.status.toLowerCase()}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={statusVariant(order.status)}>
+                  {order.status.toLowerCase()}
+                </Badge>
+                <Badge variant="outline" className="gap-1">
+                  {order.channel === "OFFLINE" ? (
+                    <Store className="h-3 w-3" />
+                  ) : (
+                    <Globe className="h-3 w-3" />
+                  )}
+                  {CHANNEL_LABEL[order.channel] ?? "Online"}
+                </Badge>
+              </div>
               <span className="text-sm text-muted-foreground">
                 {dateTime(order.createdAt)}
               </span>
+            </div>
+
+            {order.restockedAt && (
+              <div className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-2 text-sm">
+                <RotateCcw className="h-4 w-4 text-accent" />
+                Stock returned on {dateShort(order.restockedAt)}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <h4 className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                  Payment
+                </h4>
+                <p>{PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod ?? "—"}</p>
+              </div>
+              <div>
+                <h4 className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                  Order no.
+                </h4>
+                <p className="font-mono text-xs pt-0.5">{order.id.slice(0, 8).toUpperCase()}</p>
+              </div>
             </div>
 
             <div>
@@ -73,7 +109,7 @@ export function OrderSheet({
                 Customer
               </h4>
               <p className="font-medium">
-                {order.customerName || order.user?.name || "Guest"}
+                {order.customerName || order.user?.name || "Walk-in customer"}
               </p>
               {order.user?.email && (
                 <p className="text-sm text-muted-foreground">{order.user.email}</p>
@@ -84,6 +120,15 @@ export function OrderSheet({
                 </p>
               )}
             </div>
+
+            {order.note && (
+              <div>
+                <h4 className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                  Note
+                </h4>
+                <p className="text-sm whitespace-pre-line">{order.note}</p>
+              </div>
+            )}
 
             {order.shippingAddress && (
               <div>

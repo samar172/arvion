@@ -5,9 +5,10 @@ import { PrismaService } from '../prisma.service';
 import { RedisService } from '../redis.service';
 import { CouponsModule } from '../coupons/coupons.module';
 import { SettingsModule } from '../settings/settings.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [CouponsModule, SettingsModule],
+  imports: [CouponsModule, SettingsModule, InventoryModule],
   controllers: [OrdersController],
   providers: [OrdersService, PrismaService, RedisService],
   exports: [OrdersService],

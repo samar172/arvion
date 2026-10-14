@@ -7,16 +7,19 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import api from "@/lib/api";
 import { StatusBadge } from "@/components/order/order-timeline";
+import { useWishlist } from "@/context/WishlistContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Heart, LifeBuoy, LogOut, PackageSearch } from "lucide-react";
+import { SafeImage } from "@/components/ui/safe-image";
 
-const inputClass =
-  "w-full font-sans text-sm px-4 py-3 border border-line bg-card rounded-sm text-ink placeholder:text-muted-2 focus:outline-none focus:border-gold transition";
-const labelClass =
-  "block font-sans text-xs tracking-[0.1em] uppercase text-emerald mb-1.5";
+const inputClass = "field";
+const labelClass = "field-label";
 
 export default function ProfilePage() {
   const { user, loading: authLoading, logout, updateUser } = useAuth();
   const toast = useToast();
   const router = useRouter();
+  const wishlist = useWishlist();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -54,7 +57,17 @@ export default function ProfilePage() {
     }
   };
 
-  if (authLoading || !user) return null;
+  if (authLoading || !user) {
+    return (
+      <div className="mx-auto max-w-5xl w-full px-4 md:px-7 py-8 md:py-12 flex-1">
+        <Skeleton className="h-10 w-56 mb-8" />
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8">
+          <Skeleton className="h-80" />
+          <Skeleton className="h-80" />
+        </div>
+      </div>
+    );
+  }
 
   const initial = (name || "A").charAt(0).toUpperCase();
 
@@ -63,9 +76,31 @@ export default function ProfilePage() {
       <p className="font-sans text-[11px] tracking-[0.28em] uppercase text-gold-muted mb-2.5">
         Assalamu Alaikum
       </p>
-      <h1 className="font-display font-medium text-4xl md:text-[46px] text-ink mb-7">
-        My Account
+      <h1 className="font-display font-medium text-[38px] md:text-[52px] leading-tight text-ink mb-6">
+        My account
       </h1>
+
+      <div className="grid grid-cols-3 gap-2.5 md:gap-4 mb-8">
+        {[
+          { href: "/track", icon: PackageSearch, label: "Track orders", sub: `${orders.length} placed` },
+          { href: "/wishlist", icon: Heart, label: "Wishlist", sub: `${wishlist.items.length} saved` },
+          { href: "/contact", icon: LifeBuoy, label: "Get help", sub: "We reply fast" },
+        ].map(({ href, icon: Icon, label, sub }) => (
+          <Link
+            key={href}
+            href={href}
+            className="group flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 rounded-md border border-line bg-card px-3 py-4 md:px-5 md:py-5 text-center md:text-left hover:border-gold hover:-translate-y-0.5 transition"
+          >
+            <span className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-full bg-paper border border-line text-gold-dark group-hover:bg-emerald group-hover:text-gold group-hover:border-emerald transition">
+              <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            </span>
+            <span>
+              <span className="block font-sans text-[13px] md:text-sm text-ink">{label}</span>
+              <span className="block font-sans text-[11px] md:text-xs text-muted">{loadingOrders && href === "/track" ? "…" : sub}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
         {/* Account card + details form */}
@@ -109,7 +144,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={saving || !name || !address}
-                className="w-full bg-emerald text-cream font-sans text-[13px] tracking-[0.12em] uppercase py-3 rounded-sm hover:bg-emerald-light transition disabled:opacity-40"
+                className="btn-primary w-full"
               >
                 {saving ? "Saving…" : "Save Changes"}
               </button>
@@ -118,9 +153,9 @@ export default function ProfilePage() {
 
           <button
             onClick={() => logout()}
-            className="w-full border border-line text-danger font-sans text-[13px] tracking-[0.1em] uppercase py-3 rounded-sm hover:border-danger transition"
+            className="btn w-full border border-line text-danger hover:border-danger"
           >
-            Sign Out
+            <LogOut className="h-4 w-4" strokeWidth={1.75} /> Sign out
           </button>
         </div>
 
@@ -139,8 +174,10 @@ export default function ProfilePage() {
           </div>
 
           {loadingOrders ? (
-            <div className="py-20 text-center font-display italic text-lg text-muted animate-pulse">
-              Loading orders…
+            <div className="flex flex-col gap-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-24 rounded-md" />
+              ))}
             </div>
           ) : orders.length === 0 ? (
             <div className="text-center py-16 px-5 border border-line rounded bg-card">
@@ -160,9 +197,20 @@ export default function ProfilePage() {
               {orders.map((order) => (
                 <div
                   key={order.id}
-                  className="border border-line rounded bg-card px-5 py-4 flex items-center justify-between gap-4"
+                  className="border border-line rounded-md bg-card px-4 md:px-5 py-4 flex items-center justify-between gap-4 hover:border-gold/60 transition"
                 >
-                  <div className="min-w-0">
+                  <div className="hidden sm:flex -space-x-3 shrink-0">
+                    {order.items?.slice(0, 3).map((item: any) => (
+                      <span key={item.id} className="h-12 w-12 rounded-md overflow-hidden border-2 border-card bg-paper">
+                        {item.product?.imageUrl ? (
+                          <SafeImage src={item.product.imageUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="block h-full w-full pattern-paper" />
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs text-muted-2 mb-1">
                       #{order.id.slice(0, 8).toUpperCase()}
                     </p>

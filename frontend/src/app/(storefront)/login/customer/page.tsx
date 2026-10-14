@@ -16,7 +16,7 @@ declare global {
 }
 
 const inputClass =
-  "w-full font-sans text-sm px-4 py-3.5 border border-line bg-card rounded-sm text-ink placeholder:text-muted-2 focus:outline-none focus:border-gold transition";
+  "w-full font-sans text-base md:text-sm px-4 py-3.5 border border-line bg-card rounded-sm text-ink placeholder:text-muted-2 focus:outline-none focus:border-gold transition";
 
 const labelClass =
   "block font-sans text-xs tracking-[0.1em] uppercase text-emerald mb-1.5";
@@ -149,7 +149,7 @@ function CustomerLogin() {
       : `Sign in to ${settings.storeName} with your phone number.`;
 
   return (
-    <div className="flex-1 w-full flex items-center justify-center px-4 py-12 md:py-20">
+    <div className="flex-1 w-full flex items-center justify-center px-4 py-8 md:py-20">
       <div className="w-full max-w-md">
         {/* Ornament */}
         <div className="text-center mb-7">
@@ -159,7 +159,7 @@ function CustomerLogin() {
             width={942}
             height={957}
             priority
-            className="h-20 w-auto mx-auto mb-4"
+            className="h-16 md:h-20 w-auto mx-auto mb-4"
           />
           <div className="font-sans text-[11px] tracking-[0.28em] uppercase text-gold-muted mb-3">
             ✦ {settings.storeTagline} ✦
@@ -170,7 +170,7 @@ function CustomerLogin() {
           <p className="font-sans font-light text-sm text-muted mt-2.5">{sub}</p>
         </div>
 
-        <div className="border border-line rounded bg-card p-6 md:p-8">
+        <div className="border border-line rounded-lg bg-card p-5 sm:p-6 md:p-8 shadow-[0_24px_60px_-40px_rgba(13,59,44,0.5)] animate-fadeUp">
           {error && (
             <div className="mb-5 border border-danger/40 bg-danger/5 rounded-sm px-4 py-3 font-sans text-[13px] text-danger">
               {error}
@@ -188,6 +188,8 @@ function CustomerLogin() {
                   <input
                     type="tel"
                     inputMode="numeric"
+                    autoComplete="tel-national"
+                    autoFocus
                     required
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
@@ -200,7 +202,7 @@ function CustomerLogin() {
               <button
                 type="submit"
                 disabled={loading || phoneNumber.length < 10}
-                className="w-full bg-emerald text-cream font-sans text-[13px] tracking-[0.12em] uppercase py-3.5 rounded-sm hover:bg-emerald-light transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-primary w-full"
               >
                 {loading ? "Sending OTP…" : "Get OTP"}
               </button>
@@ -214,6 +216,7 @@ function CustomerLogin() {
                 <input
                   type="text"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   required
                   autoFocus
                   value={otp}
@@ -240,7 +243,7 @@ function CustomerLogin() {
               <button
                 type="submit"
                 disabled={loading || otp.length < 6}
-                className="w-full bg-emerald text-cream font-sans text-[13px] tracking-[0.12em] uppercase py-3.5 rounded-sm hover:bg-emerald-light transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-primary w-full"
               >
                 {loading ? "Verifying…" : "Verify & Continue"}
               </button>
@@ -274,7 +277,7 @@ function CustomerLogin() {
               <button
                 type="submit"
                 disabled={loading || !name || !address}
-                className="w-full bg-gold text-emerald font-sans text-[13px] tracking-[0.12em] uppercase py-3.5 rounded-sm hover:bg-gold-light transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-gold w-full"
               >
                 {loading ? "Saving…" : "Save & Continue"}
               </button>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, ShoppingBag, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { SafeImage } from "@/components/ui/safe-image";
 
 const VISIBLE_MS = 5000;
 
@@ -29,7 +30,7 @@ export function AddedToBagBar() {
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="fixed inset-x-0 bottom-[86px] lg:bottom-6 z-[70] px-3 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-[92px] lg:bottom-6 z-overlay px-3 pointer-events-none">
       <Link
         key={lastAdded.key}
         href="/cart"
@@ -38,8 +39,7 @@ export function AddedToBagBar() {
         className="pointer-events-auto animate-slideUp mx-auto flex max-w-lg items-center gap-3 rounded-lg border border-gold/60 bg-emerald px-3 py-2.5 shadow-2xl"
       >
         {lastAdded.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SafeImage
             src={lastAdded.imageUrl}
             alt=""
             className="h-11 w-11 shrink-0 rounded object-cover"

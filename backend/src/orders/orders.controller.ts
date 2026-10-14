@@ -1,6 +1,13 @@
-import { Controller, Post, Get, Put, Param, Body, Req, Headers, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Put, Param, Body, Req, Headers, UseGuards, BadRequestException, Query } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CheckoutDto, VerifyPaymentDto } from './dto/orders.dto';
+import {
+  CheckoutDto,
+  ImportOfflineSalesDto,
+  OfflineSaleDto,
+  OrdersQueryDto,
+  UpdateOrderStatusDto,
+  VerifyPaymentDto,
+} from './dto/orders.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -30,8 +37,22 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  getAllOrders() {
-    return this.ordersService.getAllOrders();
+  getAllOrders(@Query() q: OrdersQueryDto) {
+    return this.ordersService.getAllOrders(q);
+  }
+
+  @Post('offline')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  createOfflineSale(@Body() dto: OfflineSaleDto, @Req() req: any) {
+    return this.ordersService.createOfflineSale(dto, req.user?.id);
+  }
+
+  @Post('offline/import')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  importOfflineSales(@Body() dto: ImportOfflineSalesDto, @Req() req: any) {
+    return this.ordersService.importOfflineSales(dto, req.user?.id);
   }
 
   @Get(':id')
@@ -44,8 +65,8 @@ export class OrdersController {
   @Put(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  updateOrderStatus(@Param('id') id: string, @Body('status') status: any) {
-    return this.ordersService.updateOrderStatus(id, status);
+  updateOrderStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto, @Req() req: any) {
+    return this.ordersService.updateOrderStatus(id, dto.status, req.user?.id);
   }
 
   @Post('webhook')

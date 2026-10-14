@@ -1,6 +1,12 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body, UseGuards, Req } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
-import { CreateProductDto, UpdateProductDto, SearchProductsDto } from './dto/catalog.dto';
+import {
+  BulkProductsDto,
+  CreateProductDto,
+  ImportProductsDto,
+  UpdateProductDto,
+  SearchProductsDto,
+} from './dto/catalog.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -13,6 +19,20 @@ export class CatalogController {
   @Get()
   search(@Query() query: SearchProductsDto) {
     return this.catalogService.search(query);
+  }
+
+  @Post('import')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  importProducts(@Body() dto: ImportProductsDto, @Req() req: any) {
+    return this.catalogService.importProducts(dto, req.user?.id);
+  }
+
+  @Post('bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  bulk(@Body() dto: BulkProductsDto) {
+    return this.catalogService.bulk(dto);
   }
 
   @Get(':id')

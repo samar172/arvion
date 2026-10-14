@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import { OrderTimeline, StatusBadge } from "@/components/order/order-timeline";
+import { SafeImage } from "@/components/ui/safe-image";
 
 export default function TrackOrderPage() {
   const { user, loading: authLoading } = useAuth();
@@ -105,8 +106,7 @@ export default function TrackOrderPage() {
                           <div key={item.id} className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-sm overflow-hidden bg-paper border border-line-soft flex-none">
                               {item.product?.imageUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
+                                <SafeImage
                                   src={item.product.imageUrl}
                                   alt=""
                                   className="w-full h-full object-cover"

@@ -5,6 +5,12 @@
 :root {
   --background: #f6f1e7;
   --foreground: #16241d;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -18,6 +24,72 @@ body {
   color: #e6d3a3;
 }
 
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* The native blue clear button clashes with the palette. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* Keyboard users get a visible ring; mouse/touch users don't. */
+:focus-visible {
+  outline: 2px solid #c6a15b;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  /* Buttons — one vocabulary for the whole storefront. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-sans text-[13px] tracking-[0.1em] uppercase rounded-sm px-6 py-3.5 transition-[background-color,color,border-color,transform] duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-emerald text-cream hover:bg-emerald-light;
+  }
+  .btn-gold {
+    @apply btn bg-gold text-emerald hover:bg-gold-light;
+  }
+  .btn-outline {
+    @apply btn border border-emerald text-emerald hover:bg-emerald hover:text-cream;
+  }
+  .btn-ghost {
+    @apply btn border border-line text-emerald hover:border-gold;
+  }
+  .field {
+    @apply w-full font-sans text-[15px] md:text-sm px-4 py-3 border border-line bg-card rounded-sm text-ink placeholder:text-muted-2 focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 transition;
+  }
+  .field-label {
+    @apply block font-sans text-xs tracking-[0.1em] uppercase text-emerald mb-1.5;
+  }
+  .eyebrow {
+    @apply font-sans text-[11px] md:text-xs tracking-[0.3em] uppercase text-gold-muted;
+  }
+  .link-underline {
+    @apply font-sans text-xs md:text-[13px] tracking-[0.08em] uppercase text-emerald border-b border-gold pb-1 whitespace-nowrap hover:text-gold-dark transition-colors;
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -28,5 +100,17 @@ body {
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .ease-out-expo {
+    transition-timing-function: var(--ease-out);
+  }
+  .pattern-paper {
+    background-image: repeating-linear-gradient(135deg, #efe7d4 0 16px, #f5eede 16px 32px);
+  }
+  .pattern-emerald {
+    background-image: repeating-linear-gradient(135deg, #12442f 0 16px, #164a34 16px 32px);
   }
 }

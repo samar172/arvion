@@ -5,81 +5,87 @@ import { PrismaService } from '../prisma.service';
 const PAID_STATUSES = ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 // Orders still moving through fulfillment (not yet delivered / cancelled).
 const ACTIVE_STATUSES = ['CONFIRMED', 'PROCESSING', 'SHIPPED'];
-const LOW_STOCK_THRESHOLD = 10;
 
 @Injectable()
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
-  /** Top-line KPIs for the dashboard cards. */
+  /** Top-line KPIs for the dashboard cards, with online vs shop split. */
   async getOverview() {
-    const [paidOrders, activeOrders, totalProducts, lowStock] =
-      await Promise.all([
-        this.prisma.order.findMany({
-          where: { status: { in: PAID_STATUSES as any } },
-          select: { totalAmount: true },
-        }),
-        this.prisma.order.count({
-          where: { status: { in: ACTIVE_STATUSES as any } },
-        }),
-        this.prisma.product.count(),
-        this.prisma.inventory.count({
-          where: { stock: { lt: LOW_STOCK_THRESHOLD } },
-        }),
-      ]);
+    const [paidOrders, activeOrders, totalProducts, inventory] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { status: { in: PAID_STATUSES as any } },
+        select: { totalAmount: true, channel: true },
+      }),
+      this.prisma.order.count({
+        where: { status: { in: ACTIVE_STATUSES as any }, channel: 'ONLINE' },
+      }),
+      this.prisma.product.count(),
+      this.prisma.inventory.findMany({
+        select: { stock: true, reserved: true, lowStockThreshold: true },
+      }),
+    ]);
 
-    const totalRevenue = paidOrders.reduce(
-      (sum, o) => sum + Number(o.totalAmount),
-      0,
-    );
+    const channels = { ONLINE: { revenue: 0, orders: 0 }, OFFLINE: { revenue: 0, orders: 0 } };
+    for (const o of paidOrders) {
+      channels[o.channel].revenue += Number(o.totalAmount);
+      channels[o.channel].orders += 1;
+    }
+    const totalRevenue = channels.ONLINE.revenue + channels.OFFLINE.revenue;
     const orderCount = paidOrders.length;
+    const available = inventory.map((i) => ({ left: i.stock - i.reserved, at: i.lowStockThreshold }));
 
     return {
       totalRevenue,
       totalOrders: orderCount,
       activeOrders,
       totalProducts,
-      lowStockCount: lowStock,
+      lowStockCount: available.filter((i) => i.left > 0 && i.left <= i.at).length,
+      outOfStockCount: available.filter((i) => i.left <= 0).length,
       averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
+      channels: {
+        online: channels.ONLINE,
+        offline: channels.OFFLINE,
+      },
     };
   }
 
   /** Daily revenue + order count for the last `days` days (fills empty days with 0). */
   async getRevenueOverTime(days = 30) {
-    const since = new Date();
-    since.setHours(0, 0, 0, 0);
-    since.setDate(since.getDate() - (days - 1));
+    // Days are Indian calendar days whatever the server's timezone, so a sale
+    // at 00:30 IST lands on the day the shop recorded it.
+    const IST = 330 * 60_000;
+    const DAY = 86_400_000;
+    const istDay = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(0, 10);
+    const todayStart = Date.parse(`${istDay(new Date())}T00:00:00Z`) - IST;
+    const since = new Date(todayStart - (days - 1) * DAY);
 
     const orders = await this.prisma.order.findMany({
       where: {
         status: { in: PAID_STATUSES as any },
         createdAt: { gte: since },
       },
-      select: { totalAmount: true, createdAt: true },
+      select: { totalAmount: true, createdAt: true, channel: true },
     });
 
     // Seed a bucket for every day so the chart has no gaps.
-    const buckets = new Map<string, { revenue: number; orders: number }>();
+    const buckets = new Map<string, { revenue: number; orders: number; online: number; offline: number }>();
     for (let i = 0; i < days; i++) {
-      const d = new Date(since);
-      d.setDate(since.getDate() + i);
-      buckets.set(d.toISOString().slice(0, 10), { revenue: 0, orders: 0 });
+      buckets.set(istDay(new Date(since.getTime() + i * DAY)), { revenue: 0, orders: 0, online: 0, offline: 0 });
     }
 
     for (const o of orders) {
-      const key = o.createdAt.toISOString().slice(0, 10);
-      const bucket = buckets.get(key);
+      const bucket = buckets.get(istDay(o.createdAt));
       if (bucket) {
-        bucket.revenue += Number(o.totalAmount);
+        const amount = Number(o.totalAmount);
+        bucket.revenue += amount;
         bucket.orders += 1;
+        if (o.channel === 'OFFLINE') bucket.offline += amount;
+        else bucket.online += amount;
       }
     }
 
-    return Array.from(buckets.entries()).map(([date, v]) => ({
-      date,
-      revenue: v.revenue,
-      orders: v.orders,
-    }));
+    return Array.from(buckets.entries()).map(([date, v]) => ({ date, ...v }));
   }
 
   /** Best-selling products by units sold (paid orders only). */
@@ -137,7 +143,8 @@ export class AnalyticsService {
 
     return orders.map((o) => ({
       id: o.id,
-      customer: o.user?.name ?? 'Unknown',
+      customer: o.customerName || o.user?.name || 'Walk-in customer',
+      channel: o.channel,
       email: o.user?.email ?? '',
       status: o.status,
       totalAmount: Number(o.totalAmount),

@@ -1,6 +1,8 @@
 export function inr(value: number | string | null | undefined) {
   const n = typeof value === "string" ? parseFloat(value) : value ?? 0;
-  return `₹${(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const v = n || 0;
+  const digits = Number.isInteger(v) ? 0 : 2;
+  return `₹${v.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
 export function dateShort(value: string | Date) {
@@ -40,4 +42,37 @@ export function statusVariant(
   if (status === "FAILED" || status === "CANCELLED") return "destructive";
   if (status === "PENDING") return "outline";
   return "secondary";
+}
+
+export const CHANNEL_LABEL: Record<string, string> = {
+  ONLINE: "Online",
+  OFFLINE: "Shop",
+};
+
+export const PAYMENT_METHODS = ["CASH", "UPI", "CARD", "OTHER"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_LABEL: Record<string, string> = {
+  CASH: "Cash",
+  UPI: "UPI",
+  CARD: "Card",
+  OTHER: "Other",
+  RAZORPAY: "Razorpay",
+};
+
+/** How each ledger entry reads in the stock history. */
+export const MOVEMENT_LABEL: Record<string, string> = {
+  RESTOCK: "Received",
+  ADJUSTMENT: "Adjusted",
+  SALE_ONLINE: "Online sale",
+  SALE_OFFLINE: "Shop sale",
+  RETURN: "Returned",
+  DAMAGE: "Damaged / lost",
+  IMPORT: "Imported",
+};
+
+export const MOVEMENT_TYPES = Object.keys(MOVEMENT_LABEL);
+
+export function signed(n: number) {
+  return n > 0 ? `+${n}` : String(n);
 }

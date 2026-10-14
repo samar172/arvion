@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api, { apiError } from "@/lib/api";
+import { inr } from "@/lib/format";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ const EMPTY = {
   description: "",
   price: "",
   compareAtPrice: "",
+  costPrice: "",
   sku: "",
   categoryId: "",
   imageUrl: "",
@@ -77,6 +79,7 @@ export function ProductDialog({
         compareAtPrice: product.compareAtPrice
           ? String(product.compareAtPrice)
           : "",
+        costPrice: product.costPrice != null ? String(product.costPrice) : "",
         sku: product.sku ?? "",
         categoryId: product.categoryId ?? product.category?.id ?? "",
         imageUrl: product.imageUrl ?? "",
@@ -93,6 +96,13 @@ export function ProductDialog({
   }, [open, product]);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const price = Number(form.price);
+  const cost = Number(form.costPrice);
+  const margin =
+    form.price !== "" && form.costPrice !== "" && price > 0 && Number.isFinite(cost)
+      ? { value: price - cost, pct: ((price - cost) / price) * 100 }
+      : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +127,7 @@ export function ProductDialog({
     };
     // A blank compare-at price clears any existing sale (service maps 0 -> null).
     payload.compareAtPrice = form.compareAtPrice ? Number(form.compareAtPrice) : 0;
+    payload.costPrice = form.costPrice !== "" ? Number(form.costPrice) : null;
 
     try {
       if (isEdit) {
@@ -163,7 +174,7 @@ export function ProductDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label>Price (₹)</Label>
               <Input
@@ -182,12 +193,28 @@ export function ProductDialog({
                 step="0.01"
                 value={form.compareAtPrice}
                 onChange={(e) => set("compareAtPrice", e.target.value)}
-                placeholder="Leave blank for no sale"
+                placeholder="Blank = no sale"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Cost price (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.costPrice}
+                onChange={(e) => set("costPrice", e.target.value)}
+                placeholder="Optional"
               />
             </div>
           </div>
+          {margin && (
+            <p className={`-mt-2 text-xs ${margin.value < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+              Margin {inr(margin.value)} per unit ({margin.pct.toFixed(1)}%)
+            </p>
+          )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label>SKU</Label>
               <Input
@@ -217,9 +244,17 @@ export function ProductDialog({
             </div>
           </div>
 
-          {!isEdit && (
-            <div className="flex flex-col gap-1.5 max-w-[50%]">
-              <Label>Initial stock</Label>
+          {isEdit ? (
+            <div className="flex flex-col gap-1.5 sm:max-w-[50%]">
+              <Label>Stock on hand</Label>
+              <Input value={form.stock || "0"} readOnly disabled />
+              <p className="text-xs text-muted-foreground">
+                Change stock from Inventory so it&apos;s recorded in the stock history.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 sm:max-w-[50%]">
+              <Label>Opening stock</Label>
               <Input
                 type="number"
                 min="0"

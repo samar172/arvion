@@ -1,9 +1,17 @@
-import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { StockService } from '../inventory/stock.service';
 import { RedisService } from '../redis.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { SettingsService } from '../settings/settings.service';
-import { CheckoutDto, VerifyPaymentDto } from './dto/orders.dto';
+import {
+  CheckoutDto,
+  ImportOfflineSalesDto,
+  OfflineSaleDto,
+  OrdersQueryDto,
+  VerifyPaymentDto,
+} from './dto/orders.dto';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 
@@ -16,6 +24,7 @@ export class OrdersService implements OnModuleInit {
     private redisService: RedisService,
     private couponsService: CouponsService,
     private settingsService: SettingsService,
+    private stock: StockService,
   ) {}
 
   onModuleInit() {
@@ -49,6 +58,11 @@ export class OrdersService implements OnModuleInit {
 
         if (!product || !product.inventory) {
           throw new BadRequestException(`Product ${item.productId} not found`);
+        }
+
+        // Admin can hide a product while it still sits in someone's bag.
+        if (!product.isActive) {
+          throw new BadRequestException(`${product.title} is no longer available`);
         }
 
         const availableStock = product.inventory.stock - product.inventory.reserved;
@@ -120,6 +134,8 @@ export class OrdersService implements OnModuleInit {
             customerName: dto.customerName,
             shippingAddress: dto.shippingAddress,
             customerPhone: user?.phone,
+            channel: 'ONLINE',
+            paymentMethod: 'RAZORPAY',
             items: {
               create: orderItemsData.map((item) => ({
                 productId: item.productId,
@@ -287,12 +303,14 @@ export class OrdersService implements OnModuleInit {
       });
 
       for (const item of order.items) {
-        await tx.inventory.update({
-          where: { productId: item.productId },
-          data: {
-            stock: { decrement: item.quantity },
-            reserved: { decrement: item.quantity },
-          },
+        // Already reserved at checkout, so this never blocks a paid order.
+        await this.stock.move(tx, {
+          productId: item.productId,
+          delta: -item.quantity,
+          type: 'SALE_ONLINE',
+          orderId: order.id,
+          releaseReserved: item.quantity,
+          allowNegative: true,
         });
       }
     });
@@ -317,31 +335,238 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  async getAllOrders() {
+  async getAllOrders(q: OrdersQueryDto = {}) {
+    const where: Prisma.OrderWhereInput = {};
+    if (q.channel) where.channel = q.channel;
+    if (q.status) where.status = q.status;
+    if (q.from || q.to) {
+      where.createdAt = {};
+      if (q.from) where.createdAt.gte = new Date(q.from);
+      if (q.to) where.createdAt.lte = new Date(new Date(q.to).getTime() + 86_399_999);
+    }
     return this.prisma.order.findMany({
-      include: { 
+      where,
+      include: {
         items: { include: { product: true } },
-        user: { select: { name: true, email: true, phone: true } }
+        user: { select: { name: true, email: true, phone: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 1000,
     });
   }
 
   async getOrderById(orderId: string) {
     return this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { 
+      include: {
         items: { include: { product: true } },
-        user: { select: { name: true, email: true, phone: true } }
+        user: { select: { name: true, email: true, phone: true } },
       },
     });
   }
 
-  async updateOrderStatus(orderId: string, status: any) {
-    return this.prisma.order.update({
+  /**
+   * Status changes that move goods keep stock honest:
+   * - cancelling a PENDING online order releases its reservation;
+   * - cancelling a paid or completed order puts the units back (once).
+   * A cancelled or failed order is final, so its stock can't be counted twice.
+   */
+  async updateOrderStatus(orderId: string, status: OrderStatus, userId?: string) {
+    const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      data: { status },
+      include: { items: true },
     });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status === status) return order;
+    if (order.status === 'CANCELLED' || order.status === 'FAILED') {
+      throw new BadRequestException(
+        `This order is ${order.status.toLowerCase()}; create a new order instead of reopening it`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (status === 'CANCELLED' || status === 'FAILED') {
+        if (order.status === 'PENDING') {
+          for (const item of order.items) {
+            await tx.inventory.update({
+              where: { productId: item.productId },
+              data: { reserved: { decrement: item.quantity } },
+            });
+          }
+          await this.redisService.getClient().del(`order:reservation:${order.id}`);
+        } else if (!order.restockedAt) {
+          for (const item of order.items) {
+            await this.stock.move(tx, {
+              productId: item.productId,
+              delta: item.quantity,
+              type: 'RETURN',
+              orderId: order.id,
+              note: `Order #${order.id.slice(0, 8).toUpperCase()} ${status.toLowerCase()}`,
+              userId,
+            });
+          }
+          return tx.order.update({
+            where: { id: orderId },
+            data: { status, restockedAt: new Date() },
+          });
+        }
+      }
+      return tx.order.update({ where: { id: orderId }, data: { status } });
+    });
+  }
+
+  /** A sale made in the shop: stock leaves immediately and the order is complete. */
+  async createOfflineSale(dto: OfflineSaleDto, adminId?: string) {
+    return this.prisma.$transaction((tx) => this.writeOfflineSale(tx, dto, adminId));
+  }
+
+  private async writeOfflineSale(tx: Prisma.TransactionClient, dto: OfflineSaleDto, adminId?: string) {
+    if (!dto.items.length) throw new BadRequestException('Add at least one item');
+
+    const products = await tx.product.findMany({
+      where: { id: { in: dto.items.map((i) => i.productId) } },
+      select: { id: true, price: true, title: true },
+    });
+    const byId = new Map(products.map((p) => [p.id, p]));
+
+    let subtotal = 0;
+    const lines = dto.items.map((item) => {
+      const product = byId.get(item.productId);
+      if (!product) throw new BadRequestException(`Product ${item.productId} not found`);
+      const price = item.unitPrice ?? Number(product.price);
+      subtotal += price * item.quantity;
+      return { productId: product.id, quantity: item.quantity, price };
+    });
+
+    const discount = Math.min(dto.discountAmount ?? 0, subtotal);
+    const total = Math.round((subtotal - discount) * 100) / 100;
+    const soldAt = dto.soldAt ? new Date(dto.soldAt) : undefined;
+
+    const order = await tx.order.create({
+      data: {
+        channel: 'OFFLINE',
+        status: 'DELIVERED',
+        paymentMethod: dto.paymentMethod ?? 'CASH',
+        customerName: dto.customerName?.trim() || 'Walk-in customer',
+        customerPhone: dto.customerPhone?.trim() || null,
+        note: dto.note?.trim() || null,
+        subtotalAmount: subtotal,
+        discountAmount: discount,
+        totalAmount: total,
+        ...(soldAt ? { createdAt: soldAt } : {}),
+        items: { create: lines },
+      },
+      include: { items: { include: { product: true } } },
+    });
+
+    for (const line of lines) {
+      await this.stock.move(tx, {
+        productId: line.productId,
+        delta: -line.quantity,
+        type: 'SALE_OFFLINE',
+        orderId: order.id,
+        userId: adminId,
+      });
+    }
+
+    return order;
+  }
+
+  /**
+   * Bulk-record shop sales from a spreadsheet. Rows sharing a bill number
+   * become one order; rows without one each become their own. `dryRun`
+   * validates SKUs and stock (summed per product) without writing.
+   */
+  async importOfflineSales(dto: ImportOfflineSalesDto, adminId?: string) {
+    const skus = [...new Set(dto.rows.map((r) => r.sku?.trim().toLowerCase()).filter(Boolean))];
+    const products = await this.prisma.product.findMany({
+      where: { sku: { in: skus, mode: 'insensitive' } },
+      select: { id: true, sku: true, title: true, price: true, inventory: true },
+    });
+    const bySku = new Map(products.map((p) => [p.sku.toLowerCase(), p]));
+    const needed = new Map<string, number>();
+
+    const rows = dto.rows.map((row, i) => {
+      const line = row.line ?? i + 2;
+      const product = row.sku ? bySku.get(row.sku.trim().toLowerCase()) : undefined;
+      const base = { line, sku: row.sku ?? '', title: product?.title ?? null, bill: row.bill ?? null };
+      if (!row.sku) return { ...base, status: 'error' as const, message: 'SKU is missing' };
+      if (!product) return { ...base, status: 'error' as const, message: 'No product with this SKU' };
+      if (!Number.isInteger(row.quantity) || row.quantity < 1) {
+        return { ...base, status: 'error' as const, message: 'Quantity must be a whole number above 0' };
+      }
+      if (row.date && Number.isNaN(new Date(row.date).getTime())) {
+        return { ...base, status: 'error' as const, message: `Can't read date "${row.date}"` };
+      }
+      needed.set(product.id, (needed.get(product.id) ?? 0) + row.quantity);
+      const unitPrice = row.unitPrice ?? Number(product.price);
+      return {
+        ...base,
+        status: 'ok' as const,
+        message: null,
+        productId: product.id,
+        quantity: row.quantity,
+        unitPrice,
+        amount: unitPrice * row.quantity,
+      };
+    });
+
+    // Stock is checked per product across the whole sheet, not per row.
+    for (const r of rows) {
+      if (r.status !== 'ok') continue;
+      const product = products.find((p) => p.id === r.productId)!;
+      const onHand = (product.inventory?.stock ?? 0) - (product.inventory?.reserved ?? 0);
+      const want = needed.get(product.id)!;
+      if (want > onHand) {
+        Object.assign(r, {
+          status: 'error',
+          message: `Sheet sells ${want}, only ${onHand} available`,
+        });
+      }
+    }
+
+    const groups = new Map<string, typeof dto.rows>();
+    dto.rows.forEach((row, i) => {
+      const key = row.bill?.trim() ? `bill:${row.bill.trim()}` : `row:${i}`;
+      groups.set(key, [...(groups.get(key) ?? []), row]);
+    });
+
+    const errors = rows.filter((r) => r.status === 'error').length;
+    const report = {
+      errors,
+      orders: groups.size,
+      units: rows.reduce((n, r) => n + (r.status === 'ok' ? r.quantity : 0), 0),
+      revenue: rows.reduce((n, r) => n + (r.status === 'ok' ? r.amount : 0), 0),
+      rows,
+    };
+    if (dto.dryRun) return { ...report, applied: false };
+    if (errors) throw new BadRequestException(`${errors} row(s) have errors; fix them and import again`);
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (const group of groups.values()) {
+          const first = group[0];
+          await this.writeOfflineSale(
+            tx,
+            {
+              items: group.map((r) => ({
+                productId: bySku.get(r.sku!.trim().toLowerCase())!.id,
+                quantity: r.quantity,
+                unitPrice: r.unitPrice,
+              })),
+              customerName: first.customerName,
+              customerPhone: first.customerPhone,
+              paymentMethod: first.paymentMethod,
+              soldAt: first.date,
+              note: first.bill ? `Bill ${first.bill} (imported)` : 'Imported sale',
+            },
+            adminId,
+          );
+        }
+      },
+      { timeout: 120_000 },
+    );
+    return { ...report, applied: true };
   }
 
   private scheduleRollbackTimeout(orderId: string, delayMs: number) {

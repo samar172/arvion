@@ -54,7 +54,7 @@ export default function FaqPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-3xl w-full px-4 md:px-7 py-10 md:py-[50px] pb-20 flex-1">
+    <div className="mx-auto max-w-3xl w-full px-4 md:px-7 py-8 md:py-[50px] flex-1">
       <h1 className="font-display font-medium text-4xl md:text-[46px] text-ink mb-2">
         Help &amp; Policies
       </h1>
@@ -76,12 +76,16 @@ export default function FaqPage() {
                 aria-expanded={isOpen}
               >
                 <span className="font-sans text-[15px] text-ink">{faq.q}</span>
-                <span className="font-display text-2xl text-gold flex-none leading-none">
-                  {isOpen ? "−" : "+"}
+                <span
+                  className={`font-display text-2xl text-gold flex-none leading-none transition-transform duration-300 ${
+                    isOpen ? "rotate-45" : ""
+                  }`}
+                >
+                  +
                 </span>
               </button>
               {isOpen && (
-                <p className="font-sans font-light text-sm leading-[1.75] text-muted px-1 pb-4">
+                <p className="font-sans font-light text-sm leading-[1.75] text-muted px-1 pb-4 animate-fadeIn">
                   {faq.a}
                 </p>
               )}
@@ -90,6 +94,9 @@ export default function FaqPage() {
         })}
       </div>
 
+      <h2 id="policies" className="scroll-mt-28 font-display font-medium text-2xl md:text-[30px] text-emerald mb-4">
+        Policies
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {policies.map((p) => (
           <div key={p.title} className="bg-paper border border-line rounded p-6">

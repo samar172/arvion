@@ -5,23 +5,32 @@ import React, { createContext, useContext, useState, useRef, useCallback } from 
 const ToastContext = createContext<(message: string) => void>(() => {});
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [message, setMessage] = useState("");
+  const [toast, setToast] = useState<{ message: string; key: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
-  const toast = useCallback((msg: string) => {
+  const show = useCallback((message: string) => {
     clearTimeout(timer.current);
-    setMessage(msg);
-    timer.current = setTimeout(() => setMessage(""), 2400);
+    setToast({ message, key: Date.now() });
+    timer.current = setTimeout(() => setToast(null), 2400);
   }, []);
 
   return (
-    <ToastContext.Provider value={toast}>
+    <ToastContext.Provider value={show}>
       {children}
-      {message && (
-        <div className="fixed bottom-24 md:bottom-7 left-1/2 -translate-x-1/2 z-[80] bg-emerald text-cream font-sans text-sm tracking-wide px-6 py-3.5 rounded border border-gold shadow-2xl animate-toast whitespace-nowrap">
-          ✦ {message}
-        </div>
-      )}
+      <div
+        aria-live="polite"
+        className="fixed bottom-[96px] lg:bottom-8 left-1/2 -translate-x-1/2 z-toast w-max max-w-[calc(100vw-32px)] pointer-events-none"
+      >
+        {toast && (
+          <div
+            key={toast.key}
+            className="bg-emerald text-cream font-sans text-sm tracking-wide px-5 py-3 rounded-full border border-gold/60 shadow-[0_16px_40px_-12px_rgba(10,46,34,0.6)] animate-toast text-center"
+          >
+            <span className="text-gold mr-1.5">✦</span>
+            {toast.message}
+          </div>
+        )}
+      </div>
     </ToastContext.Provider>
   );
 }

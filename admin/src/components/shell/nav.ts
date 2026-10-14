@@ -8,6 +8,7 @@ import {
   Boxes,
   Users,
   Settings,
+  Store,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/categories", label: "Categories", icon: FolderTree },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/pos", label: "Shop sale", icon: Store },
   { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/banners", label: "Banners", icon: Images },
   { href: "/coupons", label: "Coupons", icon: TicketPercent },

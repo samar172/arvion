@@ -8,6 +8,9 @@ import {
   Package,
   AlertTriangle,
   TrendingUp,
+  Store,
+  Globe,
+  PackageX,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -17,13 +20,14 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from "recharts";
 import api from "@/lib/api";
 import { inr, dateShort } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { statusVariant } from "@/lib/format";
+import { statusVariant, CHANNEL_LABEL } from "@/lib/format";
 
 interface Overview {
   totalRevenue: number;
@@ -31,8 +35,16 @@ interface Overview {
   activeOrders: number;
   totalProducts: number;
   lowStockCount: number;
+  outOfStockCount?: number;
   averageOrderValue: number;
+  channels?: {
+    online: { revenue: number; orders: number };
+    offline: { revenue: number; orders: number };
+  };
 }
+
+const ONLINE_COLOR = "#0d3b2c";
+const SHOP_COLOR = "#c6a15b";
 
 export default function DashboardPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -107,24 +119,42 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {overview && overview.lowStockCount > 0 && (
-        <Link href="/inventory">
-          <Card className="border-destructive/40 bg-destructive/5">
-            <CardContent className="py-4 flex items-center gap-3 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              <span className="text-sm font-medium">
-                {overview.lowStockCount} product
-                {overview.lowStockCount === 1 ? "" : "s"} low on stock — review
-                inventory
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
+      {overview && (overview.lowStockCount > 0 || (overview.outOfStockCount ?? 0) > 0) && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {(overview.outOfStockCount ?? 0) > 0 && (
+            <Link href="/inventory?status=out">
+              <Card className="border-destructive/40 bg-destructive/5 hover:bg-destructive/10 transition-colors">
+                <CardContent className="py-4 flex items-center gap-3 text-destructive">
+                  <PackageX className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    {overview.outOfStockCount} product{overview.outOfStockCount === 1 ? "" : "s"} out of
+                    stock, restock now
+                  </span>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
+          {overview.lowStockCount > 0 && (
+            <Link href="/inventory?status=low">
+              <Card className="border-accent/50 bg-accent/10 hover:bg-accent/20 transition-colors">
+                <CardContent className="py-4 flex items-center gap-3 text-foreground">
+                  <AlertTriangle className="h-5 w-5 text-accent" />
+                  <span className="text-sm font-medium">
+                    {overview.lowStockCount} product{overview.lowStockCount === 1 ? "" : "s"} running low,
+                    review inventory
+                  </span>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
+        </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <ChannelSplit overview={overview} loading={loading} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue chart */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 min-w-0">
           <CardHeader>
             <CardTitle className="font-display text-2xl">
               Revenue — last 30 days
@@ -137,9 +167,13 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={revenue}>
                   <defs>
-                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0d3b2c" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#0d3b2c" stopOpacity={0} />
+                    <linearGradient id="rev-online" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ONLINE_COLOR} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={ONLINE_COLOR} stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="rev-shop" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={SHOP_COLOR} stopOpacity={0.45} />
+                      <stop offset="100%" stopColor={SHOP_COLOR} stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e3dcc9" vertical={false} />
@@ -158,16 +192,28 @@ export default function DashboardPage() {
                     width={40}
                   />
                   <Tooltip
-                    formatter={(v: any) => [inr(v as number), "Revenue"]}
+                    formatter={(v: any, name: any) => [inr(v as number), name]}
                     labelFormatter={(l) => dateShort(l)}
                     contentStyle={{ borderRadius: 8, border: "1px solid #e3dcc9" }}
                   />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                   <Area
                     type="monotone"
-                    dataKey="revenue"
-                    stroke="#0d3b2c"
+                    dataKey="online"
+                    name="Online"
+                    stackId="rev"
+                    stroke={ONLINE_COLOR}
                     strokeWidth={2}
-                    fill="url(#rev)"
+                    fill="url(#rev-online)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="offline"
+                    name="Shop"
+                    stackId="rev"
+                    stroke={SHOP_COLOR}
+                    strokeWidth={2}
+                    fill="url(#rev-shop)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -233,6 +279,10 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="hidden sm:inline-flex gap-1 font-normal">
+                    {o.channel === "OFFLINE" ? <Store className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
+                    {CHANNEL_LABEL[o.channel] ?? "Online"}
+                  </Badge>
                   <Badge variant={statusVariant(o.status)}>
                     {o.status.toLowerCase()}
                   </Badge>
@@ -244,5 +294,73 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** Online vs shop revenue, with each channel's share of the total. */
+function ChannelSplit({ overview, loading }: { overview: Overview | null; loading: boolean }) {
+  const online = overview?.channels?.online ?? { revenue: 0, orders: 0 };
+  const shop = overview?.channels?.offline ?? { revenue: 0, orders: 0 };
+  const total = online.revenue + shop.revenue;
+  const share = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  const rows = [
+    { key: "online", label: "Online store", icon: Globe, color: ONLINE_COLOR, ...online },
+    { key: "shop", label: "Shop", icon: Store, color: SHOP_COLOR, ...shop },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between pb-3">
+        <CardTitle className="font-display text-2xl">Online vs Shop</CardTitle>
+        <Link href="/pos" className="text-sm text-primary hover:underline">
+          New shop sale
+        </Link>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {loading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : (
+          <>
+            <div
+              className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
+              role="img"
+              aria-label={`Online ${share(online.revenue)}%, shop ${share(shop.revenue)}%`}
+            >
+              {total > 0 &&
+                rows.map((r) => (
+                  <div key={r.key} style={{ width: `${share(r.revenue)}%`, background: r.color }} />
+                ))}
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {rows.map((r) => {
+                const Icon = r.icon;
+                return (
+                  <div key={r.key} className="flex items-start gap-3">
+                    <span
+                      className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: r.color }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+                        <Icon className="h-3.5 w-3.5" /> {r.label}
+                      </div>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <span className="font-display text-2xl tabular-nums">{inr(r.revenue)}</span>
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          {share(r.revenue)}%
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.orders} paid order{r.orders === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

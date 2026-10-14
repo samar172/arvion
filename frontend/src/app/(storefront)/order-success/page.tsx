@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { OrderTimeline } from "@/components/order/order-timeline";
+import { SafeImage } from "@/components/ui/safe-image";
 
 function Loading() {
   return (
@@ -27,6 +28,7 @@ export default function OrderSuccessPage() {
 function OrderSuccess() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order");
+  const pending = searchParams.get("pending") === "1";
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -55,18 +57,23 @@ function OrderSuccess() {
     <div className="mx-auto max-w-3xl w-full px-4 md:px-7 py-12 md:py-16 flex-1">
       {/* Confirmation header */}
       <div className="text-center mb-10">
-        <div className="mx-auto w-16 h-16 rounded-full bg-emerald text-sand flex items-center justify-center text-2xl mb-5">
-          ✦
+        <div className="relative mx-auto w-16 h-16 mb-5">
+          <span className="absolute inset-0 rounded-full bg-gold/30 animate-ping [animation-iteration-count:2]" />
+          <span className="relative w-16 h-16 rounded-full bg-emerald text-sand flex items-center justify-center text-2xl animate-pop">
+            ✦
+          </span>
         </div>
         <p className="font-sans text-[11px] tracking-[0.28em] uppercase text-gold-muted mb-2.5">
           Jazakallah Khair
         </p>
         <h1 className="font-display font-medium text-4xl md:text-[46px] leading-tight text-ink">
-          Your order is confirmed
+          {pending ? "Payment received" : "Your order is confirmed"}
         </h1>
         <p className="font-sans font-light text-[15px] text-muted mt-3 max-w-md mx-auto leading-relaxed">
           {order?.customerName ? `Thank you, ${order.customerName}. ` : "Thank you. "}
-          We&apos;re wrapping your gift with care and will keep you posted on WhatsApp.
+          {pending
+            ? "We're confirming your payment with the bank — this usually takes a minute. Your order will update automatically."
+            : "We're wrapping your gift with care and will keep you posted on WhatsApp."}
         </p>
         {orderId && (
           <div className="inline-flex items-center gap-2 mt-5 border border-line bg-card rounded-sm px-4 py-2.5">
@@ -100,8 +107,7 @@ function OrderSuccess() {
                 >
                   <div className="w-12 h-12 rounded-sm overflow-hidden bg-paper border border-line-soft flex-none">
                     {item.product?.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <SafeImage
                         src={item.product.imageUrl}
                         alt=""
                         className="w-full h-full object-cover"
@@ -165,13 +171,13 @@ function OrderSuccess() {
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link
           href="/track"
-          className="text-center border border-line text-emerald font-sans text-[13px] tracking-[0.1em] uppercase px-8 py-3.5 rounded-sm hover:border-gold transition"
+          className="btn-ghost px-8"
         >
           Track Order
         </Link>
         <Link
           href="/category/all"
-          className="text-center bg-emerald text-cream font-sans text-[13px] tracking-[0.1em] uppercase px-8 py-3.5 rounded-sm hover:bg-emerald-light transition"
+          className="btn-primary px-8"
         >
           Continue Shopping
         </Link>
